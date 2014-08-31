@@ -201,6 +201,8 @@ int main (int argc, char *argv[])
 	bool traceFiles = false;                    // Tells to run the simulation with traceFiles
 	bool smart = false;                         // Tells to run the simulation with SmartFlooding
 	bool bestr = false;                         // Tells to run the simulation with BestRoute
+	bool walk = true;                           // Do random walk at walking speed
+	bool car = false;                           // Do random walk at car speed
 	char results[250] = "results";              // Directory to place results
 	char posFile[250] = "rand-hex.txt";          // File including the positioning of the nodes
 
@@ -219,6 +221,8 @@ int main (int argc, char *argv[])
 	cmd.AddValue ("smart", "Enable SmartFlooding forwarding", smart);
 	cmd.AddValue ("bestr", "Enable BestRoute forwarding", bestr);
 	cmd.AddValue ("posfile", "File containing positioning information", posFile);
+	cmd.AddValue ("walk", "Enable random walk at walking speed", walk);
+	cmd.AddValue ("car", "Enable random walk at car speed", car);
 	cmd.Parse (argc,argv);
 
 	vector<double> centralXpos;
@@ -342,40 +346,46 @@ int main (int argc, char *argv[])
 	NodeContainer firstLevel;
 	firstLevel.Create (first);
 
+	NodeContainer allNdnNodes;
+	allNdnNodes.Add (centralContainer);
+	allNdnNodes.Add (wirelessContainer);
+	allNdnNodes.Add (firstLevel);
+
+	NodeContainer lowerNdnNodes;
+	lowerNdnNodes.Add (centralContainer);
+	lowerNdnNodes.Add (wirelessContainer);
+
+	NodeContainer serverNodes;
+	serverNodes.Create (servers);
+
+	NodeContainer allUserNodes;
+	allUserNodes.Add (mobileTerminalContainer);
+	allUserNodes.Add (serverNodes);
+
 	// Make sure to seed our random
 	gen.seed (std::time (0) + (long long)getpid () << 32);
 
 	// With the network assigned, time to randomly obtain clients and servers
-//	NS_LOG_INFO ("Obtaining the clients and servers");
-//
-//	NodeContainer clientNodes;
-//	std::vector<uint32_t> clientNodeIds;
-//
-//	if (posCC > -1 && posCC < networkNodes.GetN())
-//	{
-//		Ptr<Node> tmp = networkNodes.Get (posCC);
-//		clientNodes.Add (tmp);
-//		clientNodeIds.push_back(tmp->GetId());
-//
-//	} else 	{
-//		// Obtain the random lists of server and clients
-//		std::vector<Ptr<Node> > clientVector = assignWithinContainer(networkNodes, servers);
-//
-//		// We have to manually introduce the Ptr<Node> to the NodeContainers
-//		// We do this to make them easier to control later
-//		for (uint32_t i = 0; i < servers ; i++)
-//		{
-//			Ptr<Node> tmp = clientVector[i];
-//
-//			uint32_t nodeNum = tmp->GetId();
-//
-//			sprintf (buffer, "Adding client node: %d", nodeNum);
-//			NS_LOG_INFO (buffer);
-//
-//			clientNodes.Add(tmp);
-//			clientNodeIds.push_back(nodeNum);
-//		}
-//	}
+	NS_LOG_INFO ("Obtaining the clients and servers");
+
+	std::vector<uint32_t> serverNodeIdsConnect;
+
+	// Obtain the random lists of server and clients
+	std::vector<Ptr<Node> > clientVector = assignWithinContainer(lowerNdnNodes, servers);
+
+	// We have to manually introduce the Ptr<Node> to the NodeContainers
+	// We do this to make them easier to control later
+	for (uint32_t i = 0; i < servers ; i++)
+	{
+		Ptr<Node> tmp = clientVector[i];
+
+		uint32_t nodeNum = tmp->GetId();
+
+		sprintf (buffer, "Connecting server node to node: %d", nodeNum);
+		NS_LOG_INFO (buffer);
+
+		serverNodeIdsConnect.push_back(nodeNum);
+	}
 
 	NS_LOG_INFO ("Placing Central nodes");
 	MobilityHelper centralStations;
@@ -418,12 +428,29 @@ int main (int argc, char *argv[])
 
 	string bounds = string(buffer);
 
+	if (! (car || walk))
+	{
+		cerr << "ERROR: Must choose a speed for random walk!" << endl;
+		return 1;
+	}
+
+	if (car)
+	{
+		NS_LOG_INFO("Random walk at car speed - 18.5m/s");
+		sprintf(buffer, "ns3::ConstantRandomVariable[Constant=%f]", 18.5);
+	} else if (walk)
+	{
+		NS_LOG_INFO("Random walk at human walking speed - 1.4m/s");
+		sprintf(buffer, "ns3::ConstantRandomVariable[Constant=%f]", 1.4);
+	}
+
+	string speed = string(buffer);
 
 	mobileStations.SetPositionAllocator(initialMobile);
 	mobileStations.SetMobilityModel ("ns3::RandomWalk2dMobilityModel",
 	                             "Mode", StringValue ("Distance"),
 	                             "Distance", StringValue ("500"),
-	                             "Speed", StringValue ("ns3::ConstantRandomVariable[Constant=1.4]"),
+	                             "Speed", StringValue (speed),
 	                             "Bounds", StringValue (bounds));
 
 	mobileStations.Install(mobileTerminalContainer);
@@ -449,6 +476,12 @@ int main (int argc, char *argv[])
 
 		ptpWLANCenterDevices.push_back (ptpWirelessCenterDevices);
 	}
+
+
+	// Connect the server to one of the lower level NDN nodes
+	NetDeviceContainer ptpServerlowerNdnDevices;
+
+	ptpServerlowerNdnDevices.Add (p2p_100mbps5ms.Install (serverNodes.Get (0), lowerNdnNodes.Get (serverNodeIdsConnect[0]) ));
 
 	// Connect the center nodes to first level nodes
 	NS_LOG_INFO("Connecting Central Nodes amongst themselves");
@@ -479,271 +512,137 @@ int main (int argc, char *argv[])
 		ptpFirstFirstDevices.Add (p2p_1Gbps2ms.Install (firstLevel.Get (i), firstLevel.Get ((i+1) % first)));
 	}
 
+	NS_LOG_INFO ("Creating Wireless cards");
 
-//	MobilityHelper mobilityStations;
-//
-//	mobilityStations.SetPositionAllocator ("ns3::GridPositionAllocator",
-//			"MinX", DoubleValue (0.0),
-//			"MinY", DoubleValue (0.0),
-//			"DeltaX", DoubleValue (30.0),
-//			"DeltaY", DoubleValue (0.0),
-//			"GridWidth", UintegerValue (apsContainer.GetN ()),
-//			"LayoutType", StringValue ("RowFirst"));
-//	mobilityStations.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
-//	mobilityStations.Install (apsContainer);
-//
-//	// Mobility definition for Level 1
-//	MobilityHelper mobilitylvl1;
-//
-//	mobilitylvl1.SetPositionAllocator ("ns3::GridPositionAllocator",
-//			"MinX", DoubleValue (15.0),
-//			"MinY", DoubleValue (30.0),
-//			"DeltaX", DoubleValue (60.0),
-//			"DeltaY", DoubleValue (0.0),
-//			"GridWidth", UintegerValue (lanrouterNodes.GetN ()),
-//			"LayoutType", StringValue ("RowFirst"));
-//	mobilitylvl1.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
-//	mobilitylvl1.Install (lanrouterNodes);
-//
-//	NS_LOG_INFO ("Placing mobile terminals");
-//
-//	// Place the mobile terminal above the APs and use the waypoint model
-//	MobilityHelper mobilityTerminals;
-//
-//	Vector diff = Vector(0.0, 0.0, 0.0);
-//
-//	Vector pos;
-//
-//	Ptr<ListPositionAllocator> initialAlloc = CreateObject<ListPositionAllocator> ();
-//
-//	Ptr<MobilityModel> mob = apsContainer.Get (0)->GetObject<MobilityModel>();
-//
-//	initialAlloc->Add (diff);
-//	mobilityTerminals.SetPositionAllocator(initialAlloc);
-//	mobilityTerminals.SetMobilityModel("ns3::WaypointMobilityModel");
-//	mobilityTerminals.Install(mobileTerminalContainer);
-//
-//	Ptr<WaypointMobilityModel> staWaypointMobility = DynamicCast<WaypointMobilityModel>(mobileTerminalContainer.Get (0)->GetObject<MobilityModel> ());
-//
-//	sprintf(buffer, "Assigning waypoints - start: %f, pause: %f, travel: %f", sec, waitint, travelTime);
-//
-//	NS_LOG_INFO (buffer);
-//
-//	// Assign the waypoints for the mobile terminal
-//	for (int j = 0; j < aps; j++)
-//	{
-//		mob = apsContainer.Get (j)->GetObject<MobilityModel>();
-//
-//		Vector wayP = mob->GetPosition () + diff;
-//
-//		staWaypointMobility->AddWaypoint (Waypoint(Seconds(sec), wayP));
-//		staWaypointMobility->AddWaypoint (Waypoint(Seconds(sec + waitint), wayP));
-//
-//		sec += waitint + travelTime;
-//	}
-//
-//	NS_LOG_INFO ("Creating Wireless cards");
-//
-//	// Use the Wifi Helper to define the wireless interfaces for APs
-//	WifiHelper wifi = WifiHelper::Default ();
-//	wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager");
-//
-//	YansWifiChannelHelper wifiChannel;
-//	wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
-//	wifiChannel.AddPropagationLoss ("ns3::ThreeLogDistancePropagationLossModel");
-//	wifiChannel.AddPropagationLoss ("ns3::NakagamiPropagationLossModel");
-//
-//	// All interfaces are placed on the same channel. Makes AP changes easy. Might
-//	// have to be reconsidered for multiple mobile nodes
-//	YansWifiPhyHelper wifiPhyHelper = YansWifiPhyHelper::Default ();
-//	wifiPhyHelper.SetChannel (wifiChannel.Create ());
-//	wifiPhyHelper.Set("TxPowerStart", DoubleValue(5));
-//	wifiPhyHelper.Set("TxPowerEnd", DoubleValue(5));
-//
-//	// Add a simple no QoS based card to the Wifi interfaces
-//	NqosWifiMacHelper wifiMacHelper = NqosWifiMacHelper::Default ();
-//
-//	// Create SSIDs for all the APs
-//	std::vector<Ssid> ssidV;
-//
-//	NS_LOG_INFO ("Creating ssids for wireless cards");
-//
-//	for (int i = 0; i < aps; i++)
-//	{
-//		ssidV.push_back (Ssid ("ap-" + boost::lexical_cast<std::string>(i)));
-//	}
-//
-//	NS_LOG_INFO ("Assigning mobile terminal wireless cards");
-//
-//	// Create a Wifi station type MAC
-//	wifiMacHelper.SetType("ns3::StaWifiMac",
-//			"ActiveProbing", BooleanValue (true));
-//
-//	NetDeviceContainer wifiMTNetDevices = wifi.Install (wifiPhyHelper, wifiMacHelper, mobileTerminalContainer);
-//
-//	NS_LOG_INFO ("Assigning AP wireless cards");
-//	std::vector<NetDeviceContainer> wifiAPNetDevices;
-//	for (int i = 0; i < aps; i++)
-//	{
-//		wifiMacHelper.SetType ("ns3::ApWifiMac",
-//	                       "Ssid", SsidValue (ssidV[i]),
-//	                       "BeaconGeneration", BooleanValue (true),
-//	                       "BeaconInterval", TimeValue (Seconds (0.1)));
-//
-//		wifiAPNetDevices.push_back (wifi.Install (wifiPhyHelper, wifiMacHelper, apsContainer.Get (i)));
-//	}
-//
-//	NS_LOG_INFO ("Creating Ptp connections");
-//	NetDeviceContainer p2pAPDevices;
-//
-//	// Connect every 2 APs to each other
-//	PointToPointHelper p2p_1gb5ms;
-//	p2p_1gb5ms.SetDeviceAttribute ("DataRate", StringValue ("1Gbps"));
-//	p2p_1gb5ms.SetChannelAttribute ("Delay", StringValue ("5ms"));
-//
-//	for (int j = 0; j < aps; j+=2)
-//	{
-//		p2pAPDevices.Add (
-//				p2p_1gb5ms.Install (apsContainer.Get (j), apsContainer.Get (j+1)));
-//	}
-//
-//	// Connect APs to Lan routers
-//	NetDeviceContainer p2pAPLanDevices;
-//
-//	for (int j = 0; j < aps; j+=2)
-//	{
-//		int k = j / 2;
-//		p2pAPLanDevices.Add (
-//				p2p_1gb5ms.Install (apsContainer. Get(j), lanrouterNodes.Get (k)));
-//		p2pAPLanDevices.Add (
-//				p2p_1gb5ms.Install (apsContainer. Get(j+1), lanrouterNodes.Get (k)));
-//	}
-//
-//	// Connect second level nodes among themselves
-//	NetDeviceContainer p2pLanRouterDevices;
-//
-//	for (int j = 0; j < lvl3nodes-1; j++)
-//	{
-//		p2pLanRouterDevices.Add (
-//				p2p_1gb5ms.Install (lanrouterNodes.Get (j), lanrouterNodes.Get (j+1)));
-//	}
-//
-//	NS_LOG_INFO ("Creating LAN connections");
-//	std::vector<NodeContainer> lans;
-//
-//	int step = 0;
-//
-//	for (int i = 0; i < lvl3nodes; i++)
-//	{
-//		NodeContainer tmp;
-//		tmp.Add (lanrouterNodes.Get (i));
-//
-//		for (int k = 0; k < lansize; k++)
-//		{
-//			tmp.Add (networkNodes.Get (k + step));
-//		}
-//
-//		step += lansize;
-//		lans.push_back (tmp);
-//	}
-//
-//	std::vector<CsmaHelper> csmaV;
-//
-//	for (int j = 0; j < lvl3nodes; j++)
-//	{
-//		CsmaHelper csma;
-//		csma.SetChannelAttribute("Delay", StringValue("2ms"));
-//		csma.SetChannelAttribute("DataRate", StringValue("100Mbps"));
-//
-//		csmaV.push_back (csma);
-//	}
-//	CsmaHelper csma;
-//
-//	std::vector<NetDeviceContainer> lanDevices;
-//
-//	for (int j = 0; j < lvl3nodes; j++)
-//	{
-//		lanDevices.push_back (csmaV[j].Install (lans[j]));
-//	}
-//
-//	char routeType[250];
-//
-//	// Now install content stores and the rest on the middle node. Leave
-//	// out clients and the mobile node
-//	NS_LOG_INFO ("Installing NDN stack on routers");
-//	ndn::StackHelper ndnHelperRouters;
-//
-//	// Decide what Forwarding strategy to use depending on user command line input
-//	if (smart) {
-//		sprintf(routeType, "%s", "smart");
-//		NS_LOG_INFO ("NDN Utilizing SmartFlooding");
-//		ndnHelperRouters.SetForwardingStrategy ("ns3::ndn::fw::SmartFlooding::PerOutFaceLimits", "Limit", "ns3::ndn::Limits::Window");
-//	} else if (bestr) {
-//		sprintf(routeType, "%s", "bestr");
-//		NS_LOG_INFO ("NDN Utilizing BestRoute");
-//		ndnHelperRouters.SetForwardingStrategy ("ns3::ndn::fw::BestRoute::PerOutFaceLimits", "Limit", "ns3::ndn::Limits::Window");
-//	} else {
-//		sprintf(routeType, "%s", "flood");
-//		NS_LOG_INFO ("NDN Utilizing Flooding");
-//		ndnHelperRouters.SetForwardingStrategy ("ns3::ndn::fw::Flooding::PerOutFaceLimits", "Limit", "ns3::ndn::Limits::Window");
-//	}
-//
-//	// Set the Content Stores
-//	ndnHelperRouters.SetContentStore ("ns3::ndn::cs::Freshness::Lru", "MaxSize", "1000");
-//	ndnHelperRouters.SetDefaultRoutes (true);
-//	// Install on ICN capable routers
-//	ndnHelperRouters.Install (allRouters);
-//
-//	// Create a NDN stack for the clients and mobile node
-//	ndn::StackHelper ndnHelperUsers;
-//	// These nodes have only one interface, so BestRoute forwarding makes sense
-//	ndnHelperUsers.SetForwardingStrategy ("ns3::ndn::fw::BestRoute");
-//	// No Content Stores are installed on these machines
-//	ndnHelperUsers.SetContentStore ("ns3::ndn::cs::Nocache");
-//	ndnHelperUsers.SetDefaultRoutes (true);
-//	ndnHelperUsers.Install (allUserNodes);
-//
-//	NS_LOG_INFO ("Installing Producer Application");
-//	// Create the producer on the mobile node
-//	ndn::AppHelper producerHelper ("ns3::ndn::Producer");
-//	producerHelper.SetPrefix ("/waseda/sato");
-//	producerHelper.SetAttribute("StopTime", TimeValue (Seconds(sec)));
-//	producerHelper.Install (mobileTerminalContainer);
-//
-//	NS_LOG_INFO ("Installing Consumer Application");
-//	// Create the consumer on the randomly selected node
-//	ndn::AppHelper consumerHelper ("ns3::ndn::ConsumerCbr");
-//	consumerHelper.SetPrefix ("/waseda/sato");
-//	consumerHelper.SetAttribute ("Frequency", DoubleValue (10.0));
-//	consumerHelper.SetAttribute("StartTime", TimeValue (Seconds(travelTime /2)));
-//	consumerHelper.SetAttribute("StopTime", TimeValue (Seconds(sec-1)));
-//	consumerHelper.Install (clientNodes);
-//
-//	sprintf(buffer, "Ending time! %f", sec-1);
-//	NS_LOG_INFO(buffer);
-//
-//	// If the variable is set, print the trace files
-//	if (traceFiles) {
-//		// Filename
-//		char filename[250];
-//
-//		// File ID
-//		char fileId[250];
-//
-//		// Create the file identifier
-//		sprintf(fileId, "%s-%02d-%03d-%03d.txt", routeType, mobile, servers, wnodes);
-//
-//		// Print server nodes to file
-//		sprintf(filename, "%s/%s-servers-%d", results, scenario, fileId);
-//
-//	/*	NS_LOG_INFO ("Printing node files");
-//		std::ofstream serverFile;
-//		serverFile.open (filename);
-//		for (int i = 0; i < serverNodeIds.size(); i++) {
-//			serverFile << serverNodeIds[i] << std::endl;
-//		}
-//		serverFile.close();*/
-//
+	// Use the Wifi Helper to define the wireless interfaces for APs
+	WifiHelper wifi = WifiHelper::Default ();
+	wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager");
+
+	YansWifiChannelHelper wifiChannel;
+	wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
+	wifiChannel.AddPropagationLoss ("ns3::ThreeLogDistancePropagationLossModel");
+	wifiChannel.AddPropagationLoss ("ns3::NakagamiPropagationLossModel");
+
+	// All interfaces are placed on the same channel. Makes AP changes easy. Might
+	// have to be reconsidered for multiple mobile nodes
+	YansWifiPhyHelper wifiPhyHelper = YansWifiPhyHelper::Default ();
+	wifiPhyHelper.SetChannel (wifiChannel.Create ());
+	wifiPhyHelper.Set("TxPowerStart", DoubleValue(5));
+	wifiPhyHelper.Set("TxPowerEnd", DoubleValue(5));
+
+	// Add a simple no QoS based card to the Wifi interfaces
+	NqosWifiMacHelper wifiMacHelper = NqosWifiMacHelper::Default ();
+
+	// Create SSIDs for all the APs
+	std::vector<Ssid> ssidV;
+
+	NS_LOG_INFO ("Creating ssids for wireless cards");
+
+	for (int i = 0; i < wnodes; i++)
+	{
+		ssidV.push_back (Ssid ("ap-" + boost::lexical_cast<std::string>(i)));
+	}
+
+	NS_LOG_INFO ("Assigning mobile terminal wireless cards");
+
+	NS_LOG_INFO ("Assigning AP wireless cards");
+	std::vector<NetDeviceContainer> wifiAPNetDevices;
+	for (int i = 0; i < wnodes; i++)
+	{
+		wifiMacHelper.SetType ("ns3::ApWifiMac",
+						   "Ssid", SsidValue (ssidV[0]),
+						   "BeaconGeneration", BooleanValue (true),
+						   "BeaconInterval", TimeValue (Seconds (0.1)));
+
+		wifiAPNetDevices.push_back (wifi.Install (wifiPhyHelper, wifiMacHelper, wirelessContainer.Get (i)));
+	}
+
+	// Create a Wifi station type MAC
+	wifiMacHelper.SetType("ns3::StaWifiMac",
+			"Ssid", SsidValue (ssidV[0]),
+			"ActiveProbing", BooleanValue (true));
+
+	NetDeviceContainer wifiMTNetDevices = wifi.Install (wifiPhyHelper, wifiMacHelper, mobileTerminalContainer);
+
+
+	char routeType[250];
+
+	// Now install content stores and the rest on the middle node. Leave
+	// out clients and the mobile node
+	NS_LOG_INFO ("Installing NDN stack on routers");
+	ndn::StackHelper ndnHelperRouters;
+
+	// Decide what Forwarding strategy to use depending on user command line input
+	if (smart) {
+		sprintf(routeType, "%s", "smart");
+		NS_LOG_INFO ("NDN Utilizing SmartFlooding");
+		ndnHelperRouters.SetForwardingStrategy ("ns3::ndn::fw::SmartFlooding::PerOutFaceLimits", "Limit", "ns3::ndn::Limits::Window");
+	} else if (bestr) {
+		sprintf(routeType, "%s", "bestr");
+		NS_LOG_INFO ("NDN Utilizing BestRoute");
+		ndnHelperRouters.SetForwardingStrategy ("ns3::ndn::fw::BestRoute::PerOutFaceLimits", "Limit", "ns3::ndn::Limits::Window");
+	} else {
+		sprintf(routeType, "%s", "flood");
+		NS_LOG_INFO ("NDN Utilizing Flooding");
+		ndnHelperRouters.SetForwardingStrategy ("ns3::ndn::fw::Flooding::PerOutFaceLimits", "Limit", "ns3::ndn::Limits::Window");
+	}
+
+	// Set the Content Stores
+	ndnHelperRouters.SetContentStore ("ns3::ndn::cs::Freshness::Lru", "MaxSize", "1000");
+	ndnHelperRouters.SetDefaultRoutes (true);
+	// Install on ICN capable routers
+	ndnHelperRouters.Install (allNdnNodes);
+
+	// Create a NDN stack for the clients and mobile node
+	ndn::StackHelper ndnHelperUsers;
+	// These nodes have only one interface, so BestRoute forwarding makes sense
+	ndnHelperUsers.SetForwardingStrategy ("ns3::ndn::fw::BestRoute");
+	// No Content Stores are installed on these machines
+	ndnHelperUsers.SetContentStore ("ns3::ndn::cs::Nocache");
+	ndnHelperUsers.SetDefaultRoutes (true);
+	ndnHelperUsers.Install (allUserNodes);
+
+	NS_LOG_INFO ("Installing Producer Application");
+	// Create the producer on the mobile node
+	ndn::AppHelper producerHelper ("ns3::ndn::Producer");
+	producerHelper.SetPrefix ("/waseda/sato");
+	producerHelper.SetAttribute("StopTime", TimeValue (Seconds(sec)));
+	producerHelper.Install (serverNodes);
+
+	NS_LOG_INFO ("Installing Consumer Application");
+	// Create the consumer on the randomly selected node
+	ndn::AppHelper consumerHelper ("ns3::ndn::ConsumerCbr");
+	consumerHelper.SetPrefix ("/waseda/sato");
+	consumerHelper.SetAttribute ("Frequency", DoubleValue (10.0));
+	consumerHelper.SetAttribute("StartTime", TimeValue (Seconds(travelTime /2)));
+	consumerHelper.SetAttribute("StopTime", TimeValue (Seconds(sec-1)));
+	consumerHelper.Install (mobileTerminalContainer);
+
+	sprintf(buffer, "Ending time! %f", sec-1);
+	NS_LOG_INFO(buffer);
+
+	// If the variable is set, print the trace files
+	if (traceFiles) {
+		// Filename
+		char filename[250];
+
+		// File ID
+		char fileId[250];
+
+		// Create the file identifier
+		sprintf(fileId, "%s-%02d-%03d-%03d.txt", routeType, mobile, servers, wnodes);
+
+		// Print server nodes to file
+		sprintf(filename, "%s/%s-servers-%d", results, scenario, fileId);
+
+	/*	NS_LOG_INFO ("Printing node files");
+		std::ofstream serverFile;
+		serverFile.open (filename);
+		for (int i = 0; i < serverNodeIds.size(); i++) {
+			serverFile << serverNodeIds[i] << std::endl;
+		}
+		serverFile.close();*/
+
 //		sprintf(filename, "%s/%s-clients-%s", results, scenario, fileId);
 //
 //		std::ofstream clientFile;
@@ -752,28 +651,28 @@ int main (int argc, char *argv[])
 //			clientFile << clientNodeIds[i] << std::endl;
 //		}
 //		clientFile.close();
-//
-//		NS_LOG_INFO ("Installing tracers");
-//		// NDN Aggregate tracer
-//		sprintf (filename, "%s/%s-aggregate-trace-%s", results, scenario, fileId);
-//		ndn::L3AggregateTracer::InstallAll(filename, Seconds (1.0));
-//
-//		// NDN L3 tracer
-//		sprintf (filename, "%s/%s-rate-trace-%s", results, scenario, fileId);
-//		ndn::L3RateTracer::InstallAll (filename, Seconds (1.0));
-//
-//		// NDN App Tracer
-//		sprintf (filename, "%s/%s-app-delays-%s", results, scenario, fileId);
-//		ndn::AppDelayTracer::InstallAll (filename);
-//
-//		// L2 Drop rate tracer
-//		sprintf (filename, "%s/%s-drop-trace-%s", results, scenario, fileId);
-//		L2RateTracer::InstallAll (filename, Seconds (0.5));
-//
-//		// Content Store tracer
-//		sprintf (filename, "%s/%s-cs-trace-%s", results, scenario, fileId);
-//		ndn::CsTracer::InstallAll (filename, Seconds (1));
-//	}
+
+		NS_LOG_INFO ("Installing tracers");
+		// NDN Aggregate tracer
+		sprintf (filename, "%s/%s-aggregate-trace-%s", results, scenario, fileId);
+		ndn::L3AggregateTracer::InstallAll(filename, Seconds (1.0));
+
+		// NDN L3 tracer
+		sprintf (filename, "%s/%s-rate-trace-%s", results, scenario, fileId);
+		ndn::L3RateTracer::InstallAll (filename, Seconds (1.0));
+
+		// NDN App Tracer
+		sprintf (filename, "%s/%s-app-delays-%s", results, scenario, fileId);
+		ndn::AppDelayTracer::InstallAll (filename);
+
+		// L2 Drop rate tracer
+		sprintf (filename, "%s/%s-drop-trace-%s", results, scenario, fileId);
+		L2RateTracer::InstallAll (filename, Seconds (0.5));
+
+		// Content Store tracer
+		sprintf (filename, "%s/%s-cs-trace-%s", results, scenario, fileId);
+		ndn::CsTracer::InstallAll (filename, Seconds (1));
+	}
 //
 //	NS_LOG_INFO ("Scheduling events - Getting objects");
 //
@@ -795,7 +694,7 @@ int main (int argc, char *argv[])
 //		apsec += waitint + travelTime;
 //	}
 //
-//	NS_LOG_INFO ("Ready for execution!");
+	NS_LOG_INFO ("Ready for execution!");
 
 	Simulator::Stop (Seconds (28.0));
 	Simulator::Run ();
