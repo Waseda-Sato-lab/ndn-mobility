@@ -150,21 +150,22 @@ filename = res + ".txt"
 # List for characters I wish to replace
 replace = ["(", " ", ")"]
 
+# Output information to send to file
 ofile = open(filename, "w")
+# Print size of the area covered
+ofile.write(str(args.xaxis) + "\n")
+ofile.write(str(args.yaxis) + "\n")
 # Number of GWs
-ofile.write(str(len(resGW)))
-ofile.write("\n")
+ofile.write(str(len(resGW)) + "\n")
 # Positions of the GWs
 for i in resGW:
     tmp = "".join(c for c in str(i) if c not in replace) 
     ofile.write(tmp)
     ofile.write("\n")
 # Number of wireless nodes per GW
-ofile.write(str(w))
-ofile.write("\n")
+ofile.write(str(w) + "\n")
 # Total number of wireless nodes
-ofile.write(str(len(resGW)*w))
-ofile.write("\n")
+ofile.write(str(len(resGW)*w) + "\n")
 # Positions of the wireless capable nodes
 for i in resN:
     tmp = "".join(c for c in str(i) if c not in replace) 
