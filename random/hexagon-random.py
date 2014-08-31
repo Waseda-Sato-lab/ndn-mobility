@@ -7,9 +7,12 @@
 # Jairo Eduardo Lopez
 
 import argparse
+import matplotlib
+# To get png output
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 from math import sqrt
 from random import randrange, random
-from matplotlib import pyplot
 
 # Vectors that define a hexagon
 vectors = [(0,-1),(-sqrt(3.)/2.,.5),(sqrt(3.)/2.,.5)]
@@ -77,6 +80,9 @@ parser.add_argument("-y", "--yaxis",
 parser.add_argument("-w", "--wireless",
     help="Number of wireless stations to put in one hexagon area",
     dest="wireless", type=int, default=6)
+parser.add_argument("-o", "--output",
+    help="Specifies the output name for resulting PNG and TXT",
+    dest="output", default="rand-hex")
 
 # Parse things
 args = parser.parse_args()
@@ -86,7 +92,9 @@ r = args.radius
 x = args.xaxis
 y = args.yaxis
 w = args.wireless
+res = args.output
 
+# Specify the initial points to use in the algorithm
 spoints = [ (r*sqrt(3) , 2*r), (0, 5*r) ]
 sides = []
 resGW = []
@@ -99,6 +107,7 @@ resN = []
 perzone = w / 3
 remainder = w % 3
 
+# This creates the list of the sides to use in the hexagon
 for i in xrange(perzone):
     for j in xrange(3):
         sides.append(j)
@@ -106,21 +115,22 @@ for i in xrange(perzone):
 for i in xrange(remainder):
     sides.append(i)
     
+# Create all the points 
 for (x1,y1) in spoints:
     for i in frange(y1, y, 6*r):
         for j in frange(x1, x, 2*r*sqrt(3)):
             center = (j,i) 
-            print center
             resGW.append(center)
 
             for s in sides:
                 resN.append(randinunithex(center, r, s))
 
+# Begin the plotting of the points for the figure
 for i in resGW:
-    pyplot.plot([i[0]], [i[1]], 'ro') 
+    plt.plot([i[0]], [i[1]], 'ro') 
 
 for i in resN:
-    pyplot.plot([i[0]], [i[1]], 'ro') 
+    plt.plot([i[0]], [i[1]], 'ro') 
 
 for center in resGW:
     size = 2*r
@@ -130,6 +140,34 @@ for center in resGW:
         corners = [(0,1),(0,size-1),(size-1,size-1),(size-1,1),(0,1)]
         corners = [(x*v1[0]+y*v2[0],x*v1[1]+y*v2[1]) for (x,y) in corners]
         corners = [addT(x,center) for x in corners]
-        pyplot.plot([x for (x,y) in corners],[y for (x,y) in corners],'b')
+        plt.plot([x for (x,y) in corners],[y for (x,y) in corners],'b')
 
-pyplot.show()
+plt.savefig(res)
+
+# Print the relevant information into a text file
+filename = res + ".txt"
+
+# List for characters I wish to replace
+replace = ["(", " ", ")"]
+
+ofile = open(filename, "w")
+# Number of GWs
+ofile.write(str(len(resGW)))
+ofile.write("\n")
+# Positions of the GWs
+for i in resGW:
+    tmp = "".join(c for c in str(i) if c not in replace) 
+    ofile.write(tmp)
+    ofile.write("\n")
+# Number of wireless nodes per GW
+ofile.write(str(w))
+ofile.write("\n")
+# Total number of wireless nodes
+ofile.write(str(len(resGW)*w))
+ofile.write("\n")
+# Positions of the wireless capable nodes
+for i in resN:
+    tmp = "".join(c for c in str(i) if c not in replace) 
+    ofile.write(tmp)
+    ofile.write("\n")
+ofile.close()
