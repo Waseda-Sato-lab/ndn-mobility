@@ -246,9 +246,9 @@ int main (int argc, char *argv[])
 	else {
 		// Attempt to read everything
 
-		// Get the number of central nodes
 		string line;
 
+		// Get the size of the area to simulate
 		NS_LOG_INFO ("Reading X and Y axis");
 
 		getline(file, line);
@@ -259,6 +259,7 @@ int main (int argc, char *argv[])
 		istringstream yss(line);
 		yss >> yaxis;
 
+		// Get the number of central nodes
 		NS_LOG_INFO ("Reading number of sectors");
 
 		getline(file, line);
@@ -270,7 +271,7 @@ int main (int argc, char *argv[])
 
 		NS_LOG_INFO ("Reading sector positions");
 
-		// Read the position for each sector
+		// Read the position for each sector, save into vector
 		for (int i = 0; i < sectors; i++) {
 			getline(file, line, ',');
 			istringstream dxs(line);
@@ -285,20 +286,20 @@ int main (int argc, char *argv[])
 			centralYpos.push_back(tmpY);
 		}
 
-		NS_LOG_INFO ("Reading number of wireless nodes per sector");
 		// Get the number of wireless nodes per sector
+		NS_LOG_INFO ("Reading number of wireless nodes per sector");
 		getline(file, line);
 		istringstream apss(line);
 		apss >> aps;
 
-		NS_LOG_INFO ("Reading number of wireless nodes in the simulation");
 		// Get the total number of wireless nodes in simulation
+		NS_LOG_INFO ("Reading number of wireless nodes in the simulation");
 		getline(file, line);
 		istringstream wnss(line);
 		wnss >> wnodes;
 
+		// Read the position for each wireless node, save into vectors
 		NS_LOG_INFO ("Reading wireless node positions");
-		// Read the position for each wireless node
 		for (int i = 0; i < wnodes; i++) {
 			getline(file, line, ',');
 			istringstream dxs(line);
@@ -314,7 +315,7 @@ int main (int argc, char *argv[])
 		}
 	}
 
-	// Node definitions for mobile terminals
+	// Node definitions for mobile terminals (consumers)
 	NodeContainer mobileTerminalContainer;
 	mobileTerminalContainer.Create(mobile);
 
@@ -328,6 +329,7 @@ int main (int argc, char *argv[])
 	NodeContainer wirelessContainer;
 	wirelessContainer.Create(wnodes);
 
+	// Separate the wireless nodes into sector specific containers
 	std::vector<NodeContainer> sectorNodes;
 
 	for (int i = 0; i < sectors; i++)
@@ -340,52 +342,36 @@ int main (int argc, char *argv[])
 		sectorNodes.push_back(wireless);
 	}
 
-	int first = sectors / 3;
+	// Find out how many first level nodes we will have
+	// The +1 is for the server which will be attached to the first level nodes
+	int first = (sectors / 3) + 1;
 
 	// First level Nodes
 	NodeContainer firstLevel;
 	firstLevel.Create (first);
 
+	// Container for all NDN capable nodes
 	NodeContainer allNdnNodes;
 	allNdnNodes.Add (centralContainer);
 	allNdnNodes.Add (wirelessContainer);
 	allNdnNodes.Add (firstLevel);
 
+	// Container for all NDN capable nodes not in first level
 	NodeContainer lowerNdnNodes;
 	lowerNdnNodes.Add (centralContainer);
 	lowerNdnNodes.Add (wirelessContainer);
 
+	// Container for server (producer) nodes
 	NodeContainer serverNodes;
 	serverNodes.Create (servers);
 
+	// Container for all nodes without NDN specific capabilities
 	NodeContainer allUserNodes;
 	allUserNodes.Add (mobileTerminalContainer);
 	allUserNodes.Add (serverNodes);
 
 	// Make sure to seed our random
 	gen.seed (std::time (0) + (long long)getpid () << 32);
-
-	// With the network assigned, time to randomly obtain clients and servers
-	NS_LOG_INFO ("Obtaining the clients and servers");
-
-	std::vector<uint32_t> serverNodeIdsConnect;
-
-	// Obtain the random lists of server and clients
-	std::vector<Ptr<Node> > clientVector = assignWithinContainer(lowerNdnNodes, servers);
-
-	// We have to manually introduce the Ptr<Node> to the NodeContainers
-	// We do this to make them easier to control later
-	for (uint32_t i = 0; i < servers ; i++)
-	{
-		Ptr<Node> tmp = clientVector[i];
-
-		uint32_t nodeNum = tmp->GetId();
-
-		sprintf (buffer, "Connecting server node to node: %d", nodeNum);
-		NS_LOG_INFO (buffer);
-
-		serverNodeIdsConnect.push_back(nodeNum);
-	}
 
 	NS_LOG_INFO ("Placing Central nodes");
 	MobilityHelper centralStations;
@@ -456,9 +442,11 @@ int main (int argc, char *argv[])
 	mobileStations.Install(mobileTerminalContainer);
 
 
-	NS_LOG_INFO("Connecting Central nodes to wireless access nodes");
 	// Connect Wireless Nodes to central nodes
-	// Because the simulation is using Wifi, PtP connections are 100Mbps with 5ms delay
+	// Because the simulation is using Wifi, PtP connections are 100Mbps
+	// with 5ms delay
+	NS_LOG_INFO("Connecting Central nodes to wireless access nodes");
+
 	vector <NetDeviceContainer> ptpWLANCenterDevices;
 
 	PointToPointHelper p2p_100mbps5ms;
@@ -477,11 +465,9 @@ int main (int argc, char *argv[])
 		ptpWLANCenterDevices.push_back (ptpWirelessCenterDevices);
 	}
 
-
-	// Connect the server to one of the lower level NDN nodes
+	// Connect the server to the lone core node
 	NetDeviceContainer ptpServerlowerNdnDevices;
-
-	ptpServerlowerNdnDevices.Add (p2p_100mbps5ms.Install (serverNodes.Get (0), lowerNdnNodes.Get (serverNodeIdsConnect[0]) ));
+	ptpServerlowerNdnDevices.Add (p2p_100mbps5ms.Install (serverNodes.Get (0), firstLevel.Get (first-1)));
 
 	// Connect the center nodes to first level nodes
 	NS_LOG_INFO("Connecting Central Nodes amongst themselves");
@@ -491,11 +477,11 @@ int main (int argc, char *argv[])
 	p2p_1Gbps2ms.SetDeviceAttribute ("DataRate", StringValue ("1Gbps"));
 	p2p_1Gbps2ms.SetChannelAttribute ("Delay", StringValue ("2ms"));
 
-	for (int i = 0; i < first; i++)
+	for (int i = 0; i < first-1; i++)
 	{
 		NetDeviceContainer ptpCenterDevices;
 
-		for (int j = i; j < sectors; j+=first)
+		for (int j = i; j < sectors; j+=(first-1))
 		{
 			ptpCenterDevices.Add (p2p_1Gbps2ms.Install (firstLevel.Get (i), centralContainer.Get (j)));
 		}
@@ -509,7 +495,10 @@ int main (int argc, char *argv[])
 
 	for (int i = 0; i < first; i++)
 	{
-		ptpFirstFirstDevices.Add (p2p_1Gbps2ms.Install (firstLevel.Get (i), firstLevel.Get ((i+1) % first)));
+		for (int j = i+1; j < first; j++)
+		{
+			ptpFirstFirstDevices.Add (p2p_1Gbps2ms.Install (firstLevel.Get (i), firstLevel.Get (j)));
+		}
 	}
 
 	NS_LOG_INFO ("Creating Wireless cards");
