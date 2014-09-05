@@ -56,6 +56,9 @@
 #include <ns3-dev/ns3/ndnSIM/utils/tracers/ipv4-rate-l3-tracer.h>
 #include <ns3-dev/ns3/ndnSIM/utils/tracers/ipv4-seqs-app-tracer.h>
 
+// Personalized Station Wifi MAC
+#include "sta-map-wifi-mac.h"
+
 using namespace ns3;
 using namespace boost;
 using namespace std;
@@ -547,7 +550,7 @@ int main (int argc, char *argv[])
 	}
 
 	// Create a Wifi station type MAC
-	wifiMacHelper.SetType("ns3::StaWifiMac",
+	wifiMacHelper.SetType("ns3::StaMApWifiMac",
 			"Ssid", SsidValue (ssidV[0]),
 			"ActiveProbing", BooleanValue (true));
 
