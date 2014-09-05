@@ -26,6 +26,8 @@
 #ifndef STA_MAP_WIFI_MAC_H
 #define STA_MAP_WIFI_MAC_H
 
+#include <vector>
+
 #include <ns3-dev/ns3/regular-wifi-mac.h>
 
 #include <ns3-dev/ns3/event-id.h>
@@ -123,6 +125,11 @@ private:
   EventId m_beaconWatchdog;
   Time m_beaconWatchdogEnd;
   uint32_t m_maxMissedBeacons;
+
+  // Vectors to hold information about SSIDs obtained and RSSI-like information to use
+  // to pick a SSID to use
+  std::vector<Ssid> m_seenSSID;
+  std::vector<double> m_seenSSIDRSSI;
 
   TracedCallback<Mac48Address> m_assocLogger;
   TracedCallback<Mac48Address> m_deAssocLogger;

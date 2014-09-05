@@ -549,7 +549,7 @@ int main (int argc, char *argv[])
 		wifiAPNetDevices.push_back (wifi.Install (wifiPhyHelper, wifiMacHelper, wirelessContainer.Get (i)));
 	}
 
-	// Create a Wifi station type MAC
+	// Create a Wifi station with a modified Station MAC.
 	wifiMacHelper.SetType("ns3::StaMApWifiMac",
 			"Ssid", SsidValue (ssidV[0]),
 			"ActiveProbing", BooleanValue (true));
