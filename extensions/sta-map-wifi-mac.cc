@@ -24,6 +24,7 @@
  * Author: Jairo Eduardo Lopez <jairo@ruri.waseda.jp>
  */
 #include "sta-map-wifi-mac.h"
+#include "mac-tx-middle.h"
 
 #include <ns3-dev/ns3/log.h>
 #include <ns3-dev/ns3/simulator.h>
@@ -36,7 +37,6 @@
 #include <ns3-dev/ns3/mac-low.h>
 #include <ns3-dev/ns3/dcf-manager.h>
 #include <ns3-dev/ns3/mac-rx-middle.h>
-#include <ns3-dev/ns3/mac-tx-middle.h>
 #include <ns3-dev/ns3/wifi-mac-header.h>
 #include <ns3-dev/ns3/msdu-aggregator.h>
 #include <ns3-dev/ns3/amsdu-subframe-header.h>
@@ -471,6 +471,18 @@ StaMApWifiMac::Receive (Ptr<Packet> packet, const WifiMacHeader *hdr)
 		MgtBeaconHeader beacon;
 		packet->RemoveHeader (beacon);
 		bool goodBeacon = false;
+
+		// Variable to obtain information from beacon
+		Ssid beaconSSID = beacon.GetSsid ();
+		// Create a string from the char * of Ssid
+		std::string strSSID (beaconSSID.PeekString());
+
+		// If the SSID has not been seen, add it to our map
+		if (m_seenSSID.count(strSSID) == 0)
+		{
+			m_seenSSID[strSSID] = beaconSSID;
+		}
+
 		if (GetSsid ().IsBroadcast ()
 				|| beacon.GetSsid ().IsEqual (GetSsid ()))
 		{
@@ -485,10 +497,12 @@ StaMApWifiMac::Receive (Ptr<Packet> packet, const WifiMacHeader *hdr)
 				goodBeacon = false;
 			}
 		}
+
 		if ((IsWaitAssocResp () || IsAssociated ()) && hdr->GetAddr3 () != GetBssid ())
 		{
 			goodBeacon = false;
 		}
+
 		if (goodBeacon)
 		{
 			Time delay = MicroSeconds (beacon.GetBeaconIntervalUs () * m_maxMissedBeacons);
@@ -648,6 +662,12 @@ StaMApWifiMac::SetState (MacState value)
 		m_deAssocLogger (GetBssid ());
 	}
 	m_state = value;
+}
+
+std::map<std::string, Ssid>
+StaMApWifiMac::GetSSIDList (void)
+{
+	return m_seenSSID;
 }
 
 } // namespace ns3
