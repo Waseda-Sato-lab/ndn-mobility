@@ -80,13 +80,14 @@ br::mt19937_64 gen;
 
 // Obtains a random number from a uniform distribution between min and max.
 // Must seed number generator to ensure randomness at runtime.
-int obtain_Num(int min, int max) {
+int obtain_Num(int min, int max)
+{
     br::uniform_int_distribution<> dist(min, max);
     return dist(gen);
 }
 
-std::vector<Ptr<Node> > getVector(NodeContainer node) {
-
+std::vector<Ptr<Node> > getVector(NodeContainer node)
+{
 	uint32_t size = node.GetN ();
 
 	std::vector<Ptr<Node> > nodemutable;
@@ -102,8 +103,8 @@ std::vector<Ptr<Node> > getVector(NodeContainer node) {
 }
 
 // Randomly picks toAsig nodes from a vector that has nodesAvailable in size
-std::vector<Ptr<Node> > assignNodes(std::vector<Ptr<Node> > nodes, int toAsig, int nodesAvailable) {
-
+std::vector<Ptr<Node> > assignNodes(std::vector<Ptr<Node> > nodes, int toAsig, int nodesAvailable)
+{
 	char buffer[250];
 
 	sprintf(buffer, "assignNodes: to assign %d, left %d", toAsig, nodesAvailable);
@@ -129,8 +130,8 @@ std::vector<Ptr<Node> > assignNodes(std::vector<Ptr<Node> > nodes, int toAsig, i
 }
 
 // Obtains a random list of num_clients clients and num_servers servers from a NodeContainer
-tuple<std::vector<Ptr<Node> >, std::vector<Ptr<Node> > > assignClientsandServers(NodeContainer nodes, int num_clients, int num_servers) {
-
+tuple<std::vector<Ptr<Node> >, std::vector<Ptr<Node> > > assignClientsandServers(NodeContainer nodes, int num_clients, int num_servers)
+{
 	char buffer[250];
 
 	// Get the number of nodes in the simulation
@@ -180,12 +181,44 @@ std::vector<Ptr<Node> > assignWithinContainer (NodeContainer nodes, int num)
 }
 
 // Function to get a complete Random setup
-tuple<std::vector<Ptr<Node> >, std::vector<Ptr<Node> > > assignCompleteRandom(int num_clients, int num_servers) {
-
+tuple<std::vector<Ptr<Node> >, std::vector<Ptr<Node> > > assignCompleteRandom(int num_clients, int num_servers)
+{
 	// Obtain all the node used in the simulation
 	NodeContainer global = NodeContainer::GetGlobal ();
 
 	return assignClientsandServers(global, num_clients, num_servers);
+}
+
+// Function to change the SSID of a Node, depending on distance
+void SetSSIDviaDistance(uint32_t mtId, Ptr<MobilityModel> node, std::map<std::string, Ptr<MobilityModel> > aps)
+{
+	char configbuf[250];
+	char buffer[250];
+
+	// This causes the device in mtId to change the SSID, forcing AP change
+	sprintf(configbuf, "/NodeList/%d/DeviceList/0/$ns3::WifiNetDevice/Mac/Ssid", mtId);
+
+	std::map<double, std::string> SsidDistance;
+
+	// Iterate through the map of seen Ssids
+	for (std::map<std::string, Ptr<MobilityModel> >::iterator ii=aps.begin(); ii!=aps.end(); ++ii)
+	{
+		// Calculate the distance from the AP to the node and save into the map
+		SsidDistance[node->GetDistanceFrom((*ii).second)] = (*ii).first;
+	}
+
+	double distance = SsidDistance.begin()->first;
+	std::string ssid(SsidDistance.begin()->second);
+
+	sprintf(buffer, "Change to SSID %s at distance of %f", ssid.c_str(), distance);
+
+	NS_LOG_INFO(buffer);
+
+	// Because the map sorts by std:less, the first position has the lowest distance
+	Config::Set(configbuf, SsidValue(ssid));
+
+	// Empty the maps
+	SsidDistance.clear();
 }
 
 int main (int argc, char *argv[])
@@ -208,7 +241,8 @@ int main (int argc, char *argv[])
 	bool walk = true;                           // Do random walk at walking speed
 	bool car = false;                           // Do random walk at car speed
 	char results[250] = "results";              // Directory to place results
-	char posFile[250] = "rand-hex.txt";          // File including the positioning of the nodes
+	char posFile[250] = "rand-hex.txt";         // File including the positioning of the nodes
+	double endTime = 800;                       // Number of seconds to run the simulation
 
 	// Variable for buffer
 	char buffer[250];
@@ -227,6 +261,7 @@ int main (int argc, char *argv[])
 	cmd.AddValue ("posfile", "File containing positioning information", posFile);
 	cmd.AddValue ("walk", "Enable random walk at walking speed", walk);
 	cmd.AddValue ("car", "Enable random walk at car speed", car);
+	cmd.AddValue ("endTime", "How long the simulation will last", endTime);
 	cmd.Parse (argc,argv);
 
 	vector<double> centralXpos;
@@ -424,14 +459,17 @@ int main (int argc, char *argv[])
 		return 1;
 	}
 
+	double carSpeed = 18.5;
+	double walkSpeed = 1.4;
+
 	if (car)
 	{
 		NS_LOG_INFO("Random walk at car speed - 18.5m/s");
-		sprintf(buffer, "ns3::ConstantRandomVariable[Constant=%f]", 18.5);
+		sprintf(buffer, "ns3::ConstantRandomVariable[Constant=%f]", carSpeed);
 	} else if (walk)
 	{
 		NS_LOG_INFO("Random walk at human walking speed - 1.4m/s");
-		sprintf(buffer, "ns3::ConstantRandomVariable[Constant=%f]", 1.4);
+		sprintf(buffer, "ns3::ConstantRandomVariable[Constant=%f]", walkSpeed);
 	}
 
 	string speed = string(buffer);
@@ -521,7 +559,7 @@ int main (int argc, char *argv[])
 	YansWifiPhyHelper wifiPhyHelper = YansWifiPhyHelper::Default ();
 	wifiPhyHelper.SetChannel (wifiChannel.Create ());
 	wifiPhyHelper.Set("TxPowerStart", DoubleValue(16.0206));
-	wifiPhyHelper.Set("TxPowerEnd", DoubleValue(16.0206));
+	wifiPhyHelper.Set("TxPowerEnd", DoubleValue(1));
 
 	// Add a simple no QoS based card to the Wifi interfaces
 	NqosWifiMacHelper wifiMacHelper = NqosWifiMacHelper::Default ();
@@ -530,10 +568,6 @@ int main (int argc, char *argv[])
 	std::vector<Ssid> ssidV;
 
 	NS_LOG_INFO ("Creating ssids for wireless cards");
-
-	// Using the same calculation from the Yans-wifi-Channel, we obtain the Mobility Models for the
-	// mobile node as well as all the Wifi capable nodes
-	Ptr<MobilityModel> mobileTerminalMobility = (mobileTerminalContainer.Get (0))->GetObject<MobilityModel> ();
 
 	// We store the Wifi AP mobility models in a map, ordered by the ssid string. Will be easier to manage when
 	// calling the modified StaMApWifiMac
@@ -561,7 +595,7 @@ int main (int argc, char *argv[])
 	for (int i = 0; i < wnodes; i++)
 	{
 		wifiMacHelper.SetType ("ns3::ApWifiMac",
-						   "Ssid", SsidValue (ssidV[0]),
+						   "Ssid", SsidValue (ssidV[i]),
 						   "BeaconGeneration", BooleanValue (true),
 						   "BeaconInterval", TimeValue (Seconds (0.1)));
 
@@ -569,12 +603,15 @@ int main (int argc, char *argv[])
 	}
 
 	// Create a Wifi station with a modified Station MAC.
-	wifiMacHelper.SetType("ns3::StaMApWifiMac",
+	wifiMacHelper.SetType("ns3::StaWifiMac",
 			"Ssid", SsidValue (ssidV[0]),
 			"ActiveProbing", BooleanValue (true));
 
 	NetDeviceContainer wifiMTNetDevices = wifi.Install (wifiPhyHelper, wifiMacHelper, mobileTerminalContainer);
 
+	// Using the same calculation from the Yans-wifi-Channel, we obtain the Mobility Models for the
+	// mobile node as well as all the Wifi capable nodes
+	Ptr<MobilityModel> mobileTerminalMobility = (mobileTerminalContainer.Get (0))->GetObject<MobilityModel> ();
 
 	char routeType[250];
 
@@ -629,7 +666,7 @@ int main (int argc, char *argv[])
 	consumerHelper.SetAttribute("StopTime", TimeValue (Seconds(sec-1)));
 	consumerHelper.Install (mobileTerminalContainer);
 
-	sprintf(buffer, "Ending time! %f", sec-1);
+	sprintf(buffer, "Ending time! %f", endTime);
 	NS_LOG_INFO(buffer);
 
 	// If the variable is set, print the trace files
@@ -684,27 +721,25 @@ int main (int argc, char *argv[])
 		sprintf (filename, "%s/%s-cs-trace-%s", results, scenario, fileId);
 		ndn::CsTracer::InstallAll (filename, Seconds (1));
 	}
-//
-//	NS_LOG_INFO ("Scheduling events - Getting objects");
-//
-//	char configbuf[250];
-//	// This causes the device in mtId to change the SSID, forcing AP change
-//	sprintf(configbuf, "/NodeList/%d/DeviceList/0/$ns3::WifiNetDevice/Mac/Ssid", mtId);
-//
-//	// Schedule AP Changes
-//	double apsec = 0.0;
-//
-//	NS_LOG_INFO ("Scheduling events - Installing events");
-//	for (int j = 0; j < aps; j++)
-//	{
-//		sprintf(buffer, "Setting mobile node to AP %i at %2f seconds", j, apsec);
-//		NS_LOG_INFO (buffer);
-//
-//		Simulator::Schedule (Seconds(apsec), Config::Set, configbuf, SsidValue (ssidV[j]));
-//
-//		apsec += waitint + travelTime;
-//	}
-//
+
+	NS_LOG_INFO ("Scheduling events - SSID changes");
+
+	// Schedule AP Changes
+	double apsec = 0.0;
+	// How often should the AP check it's distance
+	double checkTime = 100.0 / walkSpeed;
+	double j = apsec;
+
+	while ( j < endTime)
+	{
+		sprintf(buffer, "Running event at %f", j);
+		NS_LOG_INFO(buffer);
+
+		Simulator::Schedule (Seconds(j), &SetSSIDviaDistance, mtId, mobileTerminalMobility, apTerminalMobility);
+
+		j += checkTime;
+	}
+
 	NS_LOG_INFO ("Ready for execution!");
 
 	Simulator::Stop (Seconds (28.0));
