@@ -38,6 +38,8 @@
 #include <ns3-dev/ns3/supported-rates.h>
 #include <ns3-dev/ns3/amsdu-subframe-header.h>
 
+#include <ns3-dev/ns3/mobility-module.h>
+
 namespace ns3  {
 
 class MgtAddBaRequestHeader;
@@ -94,6 +96,11 @@ public:
    * Obtain a list of all the SSIDs seen by the MAC interface
    */
   std::map<std::string, Ssid> GetSSIDList (void);
+
+  /**
+   * Choose SSID depending on how close the node is to an AP
+   */
+  void SetSSIDviaDistance(Ptr<MobilityModel> node, std::map<std::string, Ptr<MobilityModel> > aps);
 
 private:
   enum MacState

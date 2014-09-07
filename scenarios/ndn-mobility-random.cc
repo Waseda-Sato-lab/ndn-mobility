@@ -29,6 +29,7 @@
 #include <fstream>
 #include <iterator>
 #include <iostream>
+#include <map>
 #include <string>
 #include <sys/time.h>
 #include <vector>
@@ -519,8 +520,8 @@ int main (int argc, char *argv[])
 	// have to be reconsidered for multiple mobile nodes
 	YansWifiPhyHelper wifiPhyHelper = YansWifiPhyHelper::Default ();
 	wifiPhyHelper.SetChannel (wifiChannel.Create ());
-	wifiPhyHelper.Set("TxPowerStart", DoubleValue(5));
-	wifiPhyHelper.Set("TxPowerEnd", DoubleValue(5));
+	wifiPhyHelper.Set("TxPowerStart", DoubleValue(16.0206));
+	wifiPhyHelper.Set("TxPowerEnd", DoubleValue(16.0206));
 
 	// Add a simple no QoS based card to the Wifi interfaces
 	NqosWifiMacHelper wifiMacHelper = NqosWifiMacHelper::Default ();
@@ -530,9 +531,27 @@ int main (int argc, char *argv[])
 
 	NS_LOG_INFO ("Creating ssids for wireless cards");
 
+	// Using the same calculation from the Yans-wifi-Channel, we obtain the Mobility Models for the
+	// mobile node as well as all the Wifi capable nodes
+	Ptr<MobilityModel> mobileTerminalMobility = (mobileTerminalContainer.Get (0))->GetObject<MobilityModel> ();
+
+	// We store the Wifi AP mobility models in a map, ordered by the ssid string. Will be easier to manage when
+	// calling the modified StaMApWifiMac
+	std::map<std::string, Ptr<MobilityModel> > apTerminalMobility;
+
 	for (int i = 0; i < wnodes; i++)
 	{
-		ssidV.push_back (Ssid ("ap-" + boost::lexical_cast<std::string>(i)));
+		// Temporary string containing our SSID
+		std::string ssidtmp("ap-" + boost::lexical_cast<std::string>(i));
+
+		// Push the newly created SSID into a vector
+		ssidV.push_back (Ssid (ssidtmp));
+
+		// Get the mobility model for wnode i
+		Ptr<MobilityModel> tmp = (wirelessContainer.Get (i))->GetObject<MobilityModel> ();
+
+		// Store the information into our map
+		apTerminalMobility[ssidtmp] = tmp;
 	}
 
 	NS_LOG_INFO ("Assigning mobile terminal wireless cards");

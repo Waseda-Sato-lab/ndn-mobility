@@ -101,6 +101,7 @@ StaMApWifiMac::StaMApWifiMac ()
 : m_state (BEACON_MISSED),
   m_probeRequestEvent (),
   m_assocRequestEvent (),
+  m_maxMissedBeacons (),
   m_beaconWatchdogEnd (Seconds (0.0))
 {
 	NS_LOG_FUNCTION (this);
@@ -488,6 +489,7 @@ StaMApWifiMac::Receive (Ptr<Packet> packet, const WifiMacHeader *hdr)
 		{
 			goodBeacon = true;
 		}
+
 		SupportedRates rates = beacon.GetSupportedRates ();
 		for (uint32_t i = 0; i < m_phy->GetNBssMembershipSelectors (); i++)
 		{
@@ -509,6 +511,7 @@ StaMApWifiMac::Receive (Ptr<Packet> packet, const WifiMacHeader *hdr)
 			RestartBeaconWatchdog (delay);
 			SetBssid (hdr->GetAddr3 ());
 		}
+
 		if (goodBeacon && m_state == BEACON_MISSED)
 		{
 			SetState (WAIT_ASSOC_RESP);
@@ -668,6 +671,16 @@ std::map<std::string, Ssid>
 StaMApWifiMac::GetSSIDList (void)
 {
 	return m_seenSSID;
+}
+
+void
+StaMApWifiMac::SetSSIDviaDistance(Ptr<MobilityModel> node, std::map<std::string, Ptr<MobilityModel> > aps)
+{
+	// Obtain the keys in the m_seenSSID map
+	for (int i = 0; i< 1;i++)
+	{
+
+	}
 }
 
 } // namespace ns3
