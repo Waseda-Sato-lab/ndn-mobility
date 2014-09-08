@@ -57,9 +57,6 @@
 #include <ns3-dev/ns3/ndnSIM/utils/tracers/ipv4-rate-l3-tracer.h>
 #include <ns3-dev/ns3/ndnSIM/utils/tracers/ipv4-seqs-app-tracer.h>
 
-// Personalized Station Wifi MAC
-#include "sta-map-wifi-mac.h"
-
 using namespace ns3;
 using namespace boost;
 using namespace std;
