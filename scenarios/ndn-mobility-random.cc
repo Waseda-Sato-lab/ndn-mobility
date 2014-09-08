@@ -656,7 +656,7 @@ int main (int argc, char *argv[])
 	// Create the producer on the mobile node
 	ndn::AppHelper producerHelper ("ns3::ndn::Producer");
 	producerHelper.SetPrefix ("/waseda/sato");
-	producerHelper.SetAttribute("StopTime", TimeValue (Seconds(sec)));
+	producerHelper.SetAttribute("StopTime", TimeValue (Seconds(endTime-1)));
 	producerHelper.Install (serverNodes);
 
 	NS_LOG_INFO ("Installing Consumer Application");
@@ -664,8 +664,8 @@ int main (int argc, char *argv[])
 	ndn::AppHelper consumerHelper ("ns3::ndn::ConsumerCbr");
 	consumerHelper.SetPrefix ("/waseda/sato");
 	consumerHelper.SetAttribute ("Frequency", DoubleValue (10.0));
-	consumerHelper.SetAttribute("StartTime", TimeValue (Seconds(travelTime /2)));
-	consumerHelper.SetAttribute("StopTime", TimeValue (Seconds(sec-1)));
+	consumerHelper.SetAttribute("StartTime", TimeValue (Seconds(1)));
+	consumerHelper.SetAttribute("StopTime", TimeValue (Seconds(endTime-1)));
 	consumerHelper.Install (mobileTerminalContainer);
 
 	sprintf(buffer, "Ending time! %f", endTime);
@@ -744,7 +744,7 @@ int main (int argc, char *argv[])
 
 	NS_LOG_INFO ("Ready for execution!");
 
-	Simulator::Stop (Seconds (28.0));
+	Simulator::Stop (Seconds (endTime));
 	Simulator::Run ();
 	Simulator::Destroy ();
 }
