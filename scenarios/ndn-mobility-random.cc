@@ -459,14 +459,20 @@ int main (int argc, char *argv[])
 	double carSpeed = 18.5;
 	double walkSpeed = 1.4;
 
+	double finalspeed;
+
 	if (car)
 	{
 		NS_LOG_INFO("Random walk at car speed - 18.5m/s");
 		sprintf(buffer, "ns3::ConstantRandomVariable[Constant=%f]", carSpeed);
+
+		finalspeed = carSpeed;
 	} else if (walk)
 	{
 		NS_LOG_INFO("Random walk at human walking speed - 1.4m/s");
 		sprintf(buffer, "ns3::ConstantRandomVariable[Constant=%f]", walkSpeed);
+
+		finalspeed = walkSpeed;
 	}
 
 	string speed = string(buffer);
@@ -724,7 +730,7 @@ int main (int argc, char *argv[])
 	// Schedule AP Changes
 	double apsec = 0.0;
 	// How often should the AP check it's distance
-	double checkTime = 100.0 / walkSpeed;
+	double checkTime = 100.0 / finalspeed;
 	double j = apsec;
 
 	while ( j < endTime)
