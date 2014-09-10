@@ -3,7 +3,7 @@
  * ndn-mobility-random.cc
  *  Random walk Wifi Mobile scenario for ndnSIM
  *
- * Copyright (c) 2014 Waseda University
+ * Copyright (c) 2014 Waseda University, Sato Laboratory
  * Author: Jairo Eduardo Lopez <jairo@ruri.waseda.jp>
  *
  * Special thanks to University of Washington for initial templates
