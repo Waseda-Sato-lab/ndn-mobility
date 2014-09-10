@@ -39,6 +39,7 @@
 #include <boost/tuple/tuple.hpp>
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
+#include <boost/random/uniform_real_distribution.hpp>
 #include <boost/random/variate_generator.hpp>
 
 // ns3 modules
@@ -78,111 +79,16 @@ br::mt19937_64 gen;
 // Must seed number generator to ensure randomness at runtime.
 int obtain_Num(int min, int max)
 {
-    br::uniform_int_distribution<> dist(min, max);
-    return dist(gen);
+	br::uniform_int_distribution<> dist(min, max);
+	return dist(gen);
 }
 
-std::vector<Ptr<Node> > getVector(NodeContainer node)
+// Obtain a random double from a uniform distribution between min and max.
+// Must seed number generator to ensure randomness at runtime.
+double obtain_Num(double min, double max)
 {
-	uint32_t size = node.GetN ();
-
-	std::vector<Ptr<Node> > nodemutable;
-
-	// Copy the Node pointers into a mutable vector
-	for (uint32_t i = 0; i < size; i++) {
-		nodemutable.push_back (node.Get(i));
-	}
-
-	NS_LOG_INFO ("getVector: returning Node vector");
-
-	return nodemutable;
-}
-
-// Randomly picks toAsig nodes from a vector that has nodesAvailable in size
-std::vector<Ptr<Node> > assignNodes(std::vector<Ptr<Node> > nodes, int toAsig, int nodesAvailable)
-{
-	char buffer[250];
-
-	sprintf(buffer, "assignNodes: to assign %d, left %d", toAsig, nodesAvailable);
-
-	NS_LOG_INFO (buffer);
-
-	std::vector<Ptr<Node> > assignedNodes;
-
-	uint32_t assignMin = nodesAvailable - toAsig;
-
-	// Apply Fisher-Yates shuffle
-	for (uint32_t i = nodesAvailable; i > assignMin; i--)
-	{
-		// Get a random number
-		int toSwap = obtain_Num (0, i);
-		// Push into the client container
-		assignedNodes.push_back (nodes[toSwap]);
-		// Swap the obtained number with the last element
-		std::swap (nodes[toSwap], nodes[i]);
-	}
-
-	return assignedNodes;
-}
-
-// Obtains a random list of num_clients clients and num_servers servers from a NodeContainer
-tuple<std::vector<Ptr<Node> >, std::vector<Ptr<Node> > > assignClientsandServers(NodeContainer nodes, int num_clients, int num_servers)
-{
-	char buffer[250];
-
-	// Get the number of nodes in the simulation
-	uint32_t size = nodes.GetN ();
-
-	sprintf(buffer, "assignClientsandServers, we have %d nodes, will assign %d clients and %d servers", size, num_clients, num_servers);
-
-	NS_LOG_INFO (buffer);
-
-	// Check that we haven't asked for a scenario where we don't have enough Nodes to fulfill
-	// the requirements
-	if (num_clients + num_servers > size) {
-		NS_LOG_INFO("assignClientsandServer, required number bigger than container size!");
-		return tuple<std::vector<Ptr<Node> >, std::vector<Ptr<Node> > > ();
-	}
-
-	std::vector<Ptr<Node> > nodemutable = getVector(nodes);
-
-	std::vector<Ptr<Node> > ClientContainer = assignNodes(nodemutable, num_clients, size-1);
-
-	std::vector<Ptr<Node> > ServerContainer = assignNodes(nodemutable, num_servers, size-1-num_clients);
-
-	return tuple<std::vector<Ptr<Node> >, std::vector<Ptr<Node> > > (ClientContainer, ServerContainer);
-}
-
-// Returns a randomly picked num of Nodes from nodes Container
-std::vector<Ptr<Node> > assignWithinContainer (NodeContainer nodes, int num)
-{
-	char buffer[250];
-
-	// Get the number of nodes in the simulation
-	uint32_t size = nodes.GetN ();
-
-	sprintf(buffer, "assignWithinContainer, we have %d nodes, will assign %d", size, num);
-
-	NS_LOG_INFO (buffer);
-
-	if (num > size) {
-		NS_LOG_INFO("assignWithinContainer, required number bigger than container size!");
-		return std::vector<Ptr<Node> >();
-	}
-
-	std::vector<Ptr<Node> > nodemutable = getVector(nodes);
-
-	return assignNodes(nodemutable, num, size-1);
-
-}
-
-// Function to get a complete Random setup
-tuple<std::vector<Ptr<Node> >, std::vector<Ptr<Node> > > assignCompleteRandom(int num_clients, int num_servers)
-{
-	// Obtain all the node used in the simulation
-	NodeContainer global = NodeContainer::GetGlobal ();
-
-	return assignClientsandServers(global, num_clients, num_servers);
+	br::uniform_real_distribution<> dist(min, max);
+	return dist(gen);
 }
 
 // Function to change the SSID of a Node, depending on distance
@@ -229,8 +135,6 @@ int main (int argc, char *argv[])
 	uint32_t yaxis = 100;                       // Size of the Y axis
 	int posCC = -1;                             // Establish which node will be client
 	double sec = 0.0;                           // Movement start
-	double waitint = 1.0;                       // Wait at AP
-	double travelTime = 3.0;                    // Travel time within APs
 	bool traceFiles = false;                    // Tells to run the simulation with traceFiles
 	bool smart = false;                         // Tells to run the simulation with SmartFlooding
 	bool bestr = false;                         // Tells to run the simulation with BestRoute
@@ -248,8 +152,6 @@ int main (int argc, char *argv[])
 	cmd.AddValue ("servers", "Number of servers in the simulation", servers);
 	cmd.AddValue ("results", "Directory to place results", results);
 	cmd.AddValue ("start", "Starting second", sec);
-	cmd.AddValue ("waitint", "Wait interval between APs", waitint);
-	cmd.AddValue ("travel", "Travel time between APs", travelTime);
 	cmd.AddValue ("pos", "Position ", posCC);
 	cmd.AddValue ("trace", "Enable trace files", traceFiles);
 	cmd.AddValue ("smart", "Enable SmartFlooding forwarding", smart);
@@ -356,13 +258,21 @@ int main (int argc, char *argv[])
 
 	uint32_t mtId = mobileTerminalContainer.Get (0)->GetId();
 
+	std::vector<uint32_t> mobileNodeIds;
+
+	// Save all the mobile Node IDs
+	for (int i = 0; i < mobile; i++)
+	{
+		mobileNodeIds.push_back(mobileTerminalContainer.Get (i)->GetId ());
+	}
+
 	// Central Nodes
 	NodeContainer centralContainer;
 	centralContainer.Create (sectors);
 
 	// Wireless access Nodes
 	NodeContainer wirelessContainer;
-	wirelessContainer.Create(wnodes);
+	wirelessContainer.Create (wnodes);
 
 	// Separate the wireless nodes into sector specific containers
 	std::vector<NodeContainer> sectorNodes;
@@ -399,6 +309,14 @@ int main (int argc, char *argv[])
 	// Container for server (producer) nodes
 	NodeContainer serverNodes;
 	serverNodes.Create (servers);
+
+	std::vector<uint32_t> serverNodeIds;
+
+	// Save all the mobile Node IDs
+	for (int i = 0; i < mobile; i++)
+	{
+		serverNodeIds.push_back(serverNodes.Get (i)->GetId ());
+	}
 
 	// Container for all nodes without NDN specific capabilities
 	NodeContainer allUserNodes;
@@ -444,6 +362,28 @@ int main (int argc, char *argv[])
 	Ptr<ListPositionAllocator> initialMobile = CreateObject<ListPositionAllocator> ();
 
 	initialMobile->Add(Vector(0.0, 0.0, 0.0));
+
+	for (int i = 1; i < mobile; i++)
+	{
+		int side = obtain_Num(0,3);
+		double tmp;
+
+		switch (side)
+		{
+		case 0:
+			initialMobile->Add(Vector(0.0, obtain_Num(0.0, (double)yaxis), 0.0));
+			break;
+		case 1:
+			initialMobile->Add(Vector(obtain_Num(0.0, (double)xaxis), 0.0, 0.0));
+			break;
+		case 2:
+			initialMobile->Add(Vector((double)xaxis, obtain_Num(0.0, (double)yaxis), 0.0));
+			break;
+		case 3:
+			initialMobile->Add(Vector(obtain_Num(0.0, (double)xaxis), (double)yaxis, 0.0));
+			break;
+		}
+	}
 
 	sprintf(buffer, "0|%d|0|%d", xaxis, yaxis);
 
@@ -615,6 +555,14 @@ int main (int argc, char *argv[])
 	// mobile node as well as all the Wifi capable nodes
 	Ptr<MobilityModel> mobileTerminalMobility = (mobileTerminalContainer.Get (0))->GetObject<MobilityModel> ();
 
+	std::vector<Ptr<MobilityModel> > mobileTerminalsMobility;
+
+	// Get the list of mobile node mobility models
+	for (int i = 0; i < mobile; i++)
+	{
+		mobileTerminalsMobility.push_back((mobileTerminalContainer.Get (i))->GetObject<MobilityModel> ());
+	}
+
 	char routeType[250];
 
 	// Now install content stores and the rest on the middle node. Leave
@@ -682,25 +630,30 @@ int main (int argc, char *argv[])
 		// Create the file identifier
 		sprintf(fileId, "%s-%02d-%03d-%03d.txt", routeType, mobile, servers, wnodes);
 
+		sprintf(filename, "%s/%s-clients-%s", results, scenario, fileId);
+
+		std::ofstream clientFile;
+
+		clientFile.open (filename);
+		for (int i = 0; i < mobileNodeIds.size(); i++)
+		{
+			clientFile << mobileNodeIds[i] << std::endl;
+		}
+
+		clientFile.close();
+
 		// Print server nodes to file
 		sprintf(filename, "%s/%s-servers-%d", results, scenario, fileId);
 
-	/*	NS_LOG_INFO ("Printing node files");
 		std::ofstream serverFile;
+
 		serverFile.open (filename);
-		for (int i = 0; i < serverNodeIds.size(); i++) {
+		for (int i = 0; i < serverNodeIds.size(); i++)
+		{
 			serverFile << serverNodeIds[i] << std::endl;
 		}
-		serverFile.close();*/
 
-//		sprintf(filename, "%s/%s-clients-%s", results, scenario, fileId);
-//
-//		std::ofstream clientFile;
-//		clientFile.open (filename);
-//		for (int i = 0; i < clientNodeIds.size(); i++) {
-//			clientFile << clientNodeIds[i] << std::endl;
-//		}
-//		clientFile.close();
+		serverFile.close();
 
 		NS_LOG_INFO ("Installing tracers");
 		// NDN Aggregate tracer
@@ -737,7 +690,10 @@ int main (int argc, char *argv[])
 		sprintf(buffer, "Running event at %f", j);
 		NS_LOG_INFO(buffer);
 
-		Simulator::Schedule (Seconds(j), &SetSSIDviaDistance, mtId, mobileTerminalMobility, apTerminalMobility);
+		for (int i = 0; i < mobile; i++)
+		{
+			Simulator::Schedule (Seconds(j), &SetSSIDviaDistance, mobileNodeIds[i], mobileTerminalsMobility[i], apTerminalMobility);
+		}
 
 		j += checkTime;
 	}
