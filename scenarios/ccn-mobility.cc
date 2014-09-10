@@ -1,4 +1,4 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
+/* -*- Mode:C++; c-file-style:"gnu"; -*- */
 /*
  * ccn-mobility.cc
  *  Simple Wifi Mobile scenario for ndnSIM
