@@ -133,7 +133,6 @@ int main (int argc, char *argv[])
 	uint32_t wnodes = aps * sectors;            // Number of nodes in the network
 	uint32_t xaxis = 100;                       // Size of the X axis
 	uint32_t yaxis = 100;                       // Size of the Y axis
-	int posCC = -1;                             // Establish which node will be client
 	double sec = 0.0;                           // Movement start
 	bool traceFiles = false;                    // Tells to run the simulation with traceFiles
 	bool smart = false;                         // Tells to run the simulation with SmartFlooding
@@ -152,7 +151,6 @@ int main (int argc, char *argv[])
 	cmd.AddValue ("servers", "Number of servers in the simulation", servers);
 	cmd.AddValue ("results", "Directory to place results", results);
 	cmd.AddValue ("start", "Starting second", sec);
-	cmd.AddValue ("pos", "Position ", posCC);
 	cmd.AddValue ("trace", "Enable trace files", traceFiles);
 	cmd.AddValue ("smart", "Enable SmartFlooding forwarding", smart);
 	cmd.AddValue ("bestr", "Enable BestRoute forwarding", bestr);
@@ -252,11 +250,10 @@ int main (int argc, char *argv[])
 		}
 	}
 
+	NS_LOG_INFO ("Creating nodes");
 	// Node definitions for mobile terminals (consumers)
 	NodeContainer mobileTerminalContainer;
 	mobileTerminalContainer.Create(mobile);
-
-	uint32_t mtId = mobileTerminalContainer.Get (0)->GetId();
 
 	std::vector<uint32_t> mobileNodeIds;
 
@@ -313,7 +310,7 @@ int main (int argc, char *argv[])
 	std::vector<uint32_t> serverNodeIds;
 
 	// Save all the mobile Node IDs
-	for (int i = 0; i < mobile; i++)
+	for (int i = 0; i < servers; i++)
 	{
 		serverNodeIds.push_back(serverNodes.Get (i)->GetId ());
 	}
@@ -361,9 +358,7 @@ int main (int argc, char *argv[])
 
 	Ptr<ListPositionAllocator> initialMobile = CreateObject<ListPositionAllocator> ();
 
-	initialMobile->Add(Vector(0.0, 0.0, 0.0));
-
-	for (int i = 1; i < mobile; i++)
+	for (int i = 0; i < mobile; i++)
 	{
 		int side = obtain_Num(0,3);
 		double tmp;
@@ -643,7 +638,7 @@ int main (int argc, char *argv[])
 		clientFile.close();
 
 		// Print server nodes to file
-		sprintf(filename, "%s/%s-servers-%d", results, scenario, fileId);
+		sprintf(filename, "%s/%s-servers-%s", results, scenario, fileId);
 
 		std::ofstream serverFile;
 
