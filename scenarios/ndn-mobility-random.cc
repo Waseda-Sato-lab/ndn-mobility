@@ -489,7 +489,6 @@ int main (int argc, char *argv[])
 	YansWifiChannelHelper wifiChannel;
 	wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
 	wifiChannel.AddPropagationLoss ("ns3::ThreeLogDistancePropagationLossModel");
-	wifiChannel.AddPropagationLoss ("ns3::NakagamiPropagationLossModel");
 
 	// All interfaces are placed on the same channel. Makes AP changes easy. Might
 	// have to be reconsidered for multiple mobile nodes
