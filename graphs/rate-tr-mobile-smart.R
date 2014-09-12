@@ -43,7 +43,6 @@ data.mobile2 = read.table ("/home/jelfn/git/ndn-mobility/results/NDNMobilityRand
 data.mobile3 = read.table ("/home/jelfn/git/ndn-mobility/results/NDNMobilityRandom-rate-trace-smart-03-001-054.txt", header=T)
 data.mobile4 = read.table ("/home/jelfn/git/ndn-mobility/results/NDNMobilityRandom-rate-trace-smart-04-001-054.txt", header=T)
 
-
 data.mobile1$Node = factor (data.mobile1$Node)
 data.mobile2$Node = factor (data.mobile2$Node)
 data.mobile3$Node = factor (data.mobile3$Node)

@@ -1,9 +1,5 @@
 #!/usr/bin/Rscript
 
-# Simple R script to make graphs from ndnSIM tracers - Aggregate throughput
-# 2014-09-11
-# Jairo Eduardo Lopez
-
 # rate-tr-mobile-bestr.R
 # Script to make graphs from ndnSIM tracers - Compare by number of nodes
 #
