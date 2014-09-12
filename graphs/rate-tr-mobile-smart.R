@@ -4,23 +4,23 @@
 # 2014-09-11
 # Jairo Eduardo Lopez
 
-# rate-tr-mobile.R
+# rate-tr-mobile-smart.R
 # Script to make graphs from ndnSIM tracers - Compare by number of nodes
 #
 # Copyright (c) 2014 Waseda University, Sato Laboratory
 # Author: Jairo Eduardo Lopez <jairo@ruri.waseda.jp>
 #
-# rate-tr-mobile.R is free software: you can redistribute it and/or modify
+# rate-tr-mobile-smart.R is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# rate-tr-mobile.R is distributed in the hope that it will be useful,
+# rate-tr-mobile-smart.R is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of              
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               
 # GNU Affero Public License for more details.                                 
 #                                                                             
 # You should have received a copy of the GNU Affero Public License            
-# along with rate-tr-mobile.R.  If not, see <http://www.gnu.org/licenses/>.
+# along with rate-tr-mobile-smart.R.  If not, see <http://www.gnu.org/licenses/>.
 #                    
 
 suppressPackageStartupMessages(library (ggplot2))
@@ -38,10 +38,10 @@ option_list <- list (
 # Load the parser
 opt = parse_args(OptionParser(option_list=option_list, description="Creates graphs from ndnSIM L3 Data rate Tracer data"))
 
-data.mobile1 = read.table ("/home/jelfn/git/ndn-mobility/results/NDNMobilityRandom-rate-trace-flood-01-001-054.txt", header=T)
-data.mobile2 = read.table ("/home/jelfn/git/ndn-mobility/results/NDNMobilityRandom-rate-trace-flood-02-001-054.txt", header=T)
-data.mobile3 = read.table ("/home/jelfn/git/ndn-mobility/results/NDNMobilityRandom-rate-trace-flood-03-001-054.txt", header=T)
-data.mobile4 = read.table ("/home/jelfn/git/ndn-mobility/results/NDNMobilityRandom-rate-trace-flood-04-001-054.txt", header=T)
+data.mobile1 = read.table ("/home/jelfn/git/ndn-mobility/results/NDNMobilityRandom-rate-trace-smart-01-001-054.txt", header=T)
+data.mobile2 = read.table ("/home/jelfn/git/ndn-mobility/results/NDNMobilityRandom-rate-trace-smart-02-001-054.txt", header=T)
+data.mobile3 = read.table ("/home/jelfn/git/ndn-mobility/results/NDNMobilityRandom-rate-trace-smart-03-001-054.txt", header=T)
+data.mobile4 = read.table ("/home/jelfn/git/ndn-mobility/results/NDNMobilityRandom-rate-trace-smart-04-001-054.txt", header=T)
 
 
 data.mobile1$Node = factor (data.mobile1$Node)
@@ -86,7 +86,7 @@ g.test = ggplot (satTime, aes(linetype=Type, colour=Variable, shape=Type)) +
   geom_line(aes (x=Time, y=PacketRaw.sum), size=1.5) +
   xlab("Time") +
   ylab("Rate [Kbits/s]") +
-  ggtitle("Throughput throughout the simulation") +
+  ggtitle("Throughput throughout NDN smart fowarding simulation") +
   scale_colour_discrete(name = "Throughput of number of Nodes",
                         labels = c(mobile1name, mobile2name, mobile3name, mobile4name))
 
