@@ -129,22 +129,27 @@ void SetSSIDviaDistance(uint32_t mtId, Ptr<MobilityModel> node, std::map<std::st
 int main (int argc, char *argv[])
 {
 	// These are our scenario arguments
-	uint32_t sectors = 9;                       // Number of wireless sectors
-	uint32_t aps = 6;					        // Number of wireless access nodes in a sector
-	uint32_t mobile = 1;				        // Number of mobile terminals
-	uint32_t servers = 1;				        // Number of servers in the network
-	uint32_t wnodes = aps * sectors;            // Number of nodes in the network
-	uint32_t xaxis = 100;                       // Size of the X axis
-	uint32_t yaxis = 100;                       // Size of the Y axis
-	double sec = 0.0;                           // Movement start
-	bool traceFiles = false;                    // Tells to run the simulation with traceFiles
-	bool smart = false;                         // Tells to run the simulation with SmartFlooding
-	bool bestr = false;                         // Tells to run the simulation with BestRoute
-	bool walk = true;                           // Do random walk at walking speed
-	bool car = false;                           // Do random walk at car speed
-	char results[250] = "results";              // Directory to place results
-	char posFile[250] = "rand-hex.txt";         // File including the positioning of the nodes
-	double endTime = 800;                       // Number of seconds to run the simulation
+	uint32_t sectors = 9;                         // Number of wireless sectors
+	uint32_t aps = 6;					          // Number of wireless access nodes in a sector
+	uint32_t mobile = 1;				          // Number of mobile terminals
+	uint32_t servers = 1;				          // Number of servers in the network
+	uint32_t wnodes = aps * sectors;              // Number of nodes in the network
+	uint32_t xaxis = 100;                         // Size of the X axis
+	uint32_t yaxis = 100;                         // Size of the Y axis
+	double sec = 0.0;                             // Movement start
+	bool traceFiles = false;                      // Tells to run the simulation with traceFiles
+	bool smart = false;                           // Tells to run the simulation with SmartFlooding
+	bool bestr = false;                           // Tells to run the simulation with BestRoute
+	bool walk = true;                             // Do random walk at walking speed
+	bool car = false;                             // Do random walk at car speed
+	char results[250] = "results";                // Directory to place results
+	char posFile[250] = "rand-hex.txt";           // File including the positioning of the nodes
+	double endTime = 800;                         // Number of seconds to run the simulation
+	double intFreq = 10.0;                        // How many Interests/second a producer creates
+	double MBps = 0.15;                           // MB/s data rate desired for applications
+	int contentSize = -1;                         // Size of content to be retrieved
+	int maxSeq = -1;                              // Maximum number of Data packets to request
+	double retxtime = 0.05;                       // How frequent Interest retransmission timeouts should be checked (seconds)
 
 	// Variable for buffer
 	char buffer[250];
@@ -161,7 +166,20 @@ int main (int argc, char *argv[])
 	cmd.AddValue ("walk", "Enable random walk at walking speed", walk);
 	cmd.AddValue ("car", "Enable random walk at car speed", car);
 	cmd.AddValue ("endTime", "How long the simulation will last", endTime);
+	cmd.AddValue ("freq", "Number of Interests generated per second (relates to mbps)", intFreq);
+	cmd.AddValue ("mbps", "Data transmission rate for NDN App in MBps", MBps);
+	cmd.AddValue ("size", "Content size in MB", contentSize);
+	cmd.AddValue ("retx", "How frequent Interest retransmission timeouts should be checked in seconds", retxtime);
 	cmd.Parse (argc,argv);
+
+	 // What the NDN Data packet payload size will be (MB)
+	int payLoadsize = MBps / intFreq;
+
+	// Give the content size, find out how many sequence numbers are necessary
+	if (contentSize > 0)
+	{
+		maxSeq = 1 + ((contentSize - 1) / payLoadsize);
+	}
 
 	vector<double> centralXpos;
 	vector<double> centralYpos;
@@ -610,16 +628,22 @@ int main (int argc, char *argv[])
 	// Create the producer on the mobile node
 	ndn::AppHelper producerHelper ("ns3::ndn::Producer");
 	producerHelper.SetPrefix ("/waseda/sato");
-	producerHelper.SetAttribute("StopTime", TimeValue (Seconds(endTime-1)));
+	producerHelper.SetAttribute ("StopTime", TimeValue (Seconds(endTime-1)));
+	// Payload size is in bytes
+	producerHelper.SetAttribute ("PayloadSize", UintegerValue(payLoadsize * 1000000));
 	producerHelper.Install (serverNodes);
 
 	NS_LOG_INFO ("Installing Consumer Application");
 	// Create the consumer on the randomly selected node
 	ndn::AppHelper consumerHelper ("ns3::ndn::ConsumerCbr");
 	consumerHelper.SetPrefix ("/waseda/sato");
-	consumerHelper.SetAttribute ("Frequency", DoubleValue (10.0));
-	consumerHelper.SetAttribute("StartTime", TimeValue (Seconds(1)));
-	consumerHelper.SetAttribute("StopTime", TimeValue (Seconds(endTime-1)));
+	consumerHelper.SetAttribute ("Frequency", DoubleValue (intFreq));
+	consumerHelper.SetAttribute ("StartTime", TimeValue (Seconds(1)));
+	consumerHelper.SetAttribute ("StopTime", TimeValue (Seconds(endTime-1)));
+	consumerHelper.SetAttribute ("RetxTimer", TimeValue (Seconds(retxtime)));
+	if (maxSeq > 0)
+		consumerHelper.SetAttribute ("MaxSeq", IntegerValue(maxSeq));
+
 	consumerHelper.Install (mobileTerminalContainer);
 
 	sprintf(buffer, "Ending time! %f", endTime);
