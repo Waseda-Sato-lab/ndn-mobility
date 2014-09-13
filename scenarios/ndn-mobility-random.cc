@@ -57,6 +57,9 @@
 #include <ns3-dev/ns3/ndnSIM/utils/tracers/ipv4-rate-l3-tracer.h>
 #include <ns3-dev/ns3/ndnSIM/utils/tracers/ipv4-seqs-app-tracer.h>
 
+// Extension files
+// #include "minstrel-wifi-manager.h"
+
 using namespace ns3;
 using namespace boost;
 using namespace std;
@@ -483,12 +486,21 @@ int main (int argc, char *argv[])
 	NS_LOG_INFO ("Creating Wireless cards");
 
 	// Use the Wifi Helper to define the wireless interfaces for APs
-	WifiHelper wifi = WifiHelper::Default ();
-	wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager");
+	WifiHelper wifi;
+	wifi.SetStandard(WIFI_PHY_STANDARD_80211g);
+	// The N standard is apparently not completely supported in NS-3
+	//wifi.setStandard(WIFI_PHY_STANDARD_80211n_2_4GHZ);
+	// The ConstantRateWifiManager only works with one rate, making issues
+	//wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager");
+	// The MinstrelWifiManager isn't working on the current version of NS-3
+	//wifi.SetRemoteStationManager ("ns3::MinstrelWifiManager");
+	wifi.SetRemoteStationManager ("ns3::ArfWifiManager");
+
 
 	YansWifiChannelHelper wifiChannel;
 	wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
 	wifiChannel.AddPropagationLoss ("ns3::ThreeLogDistancePropagationLossModel");
+	wifiChannel.AddPropagationLoss("ns3::NakagamiPropagationLossModel");
 
 	// All interfaces are placed on the same channel. Makes AP changes easy. Might
 	// have to be reconsidered for multiple mobile nodes
@@ -533,7 +545,7 @@ int main (int argc, char *argv[])
 		wifiMacHelper.SetType ("ns3::ApWifiMac",
 						   "Ssid", SsidValue (ssidV[i]),
 						   "BeaconGeneration", BooleanValue (true),
-						   "BeaconInterval", TimeValue (Seconds (0.1)));
+						   "BeaconInterval", TimeValue (Seconds (0.102)));
 
 		wifiAPNetDevices.push_back (wifi.Install (wifiPhyHelper, wifiMacHelper, wirelessContainer.Get (i)));
 	}
