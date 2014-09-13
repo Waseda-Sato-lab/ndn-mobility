@@ -47,55 +47,16 @@ data$Type = factor (data$Type)
 
 intdata = data
 
-# exclude irrelevant types - CCN
-data = subset (data, Type %in% c("InData", "OutData"))
-intdata = subset(intdata, Type %in% c("InInterests", "OutInterests"))
+intdata = subset(intdata, Type %in% c("OutInterests", "InData"))
 
 name = ""
 filnodes = unlist(strsplit(opt$node, ","))
-
-# Filter for a particular node
-if (nchar(opt$node) > 0) {
-  
-  data = subset (data, Node %in% filnodes)
-  
-  if (dim(data)[1] == 0) {
-    cat(sprintf("There is no Node %s in this trace!\n", opt$node))
-    quit("yes")
-  }
-  name = sprintf("%s Data rate for Nodes %s", opt$title, opt$node)
-} else {
-  name = sprintf ("%s Data rate",  opt$title)
-}
-
-# combine stats from all faces
-data.combined = summaryBy (. ~ Time + Node + Type, data=data, FUN=sum)
-
-# graph rates on all nodes in Kilobits
-g.all <- ggplot (data.combined, aes(x=Time, y=Kilobits.sum, color=Type)) +
-  geom_line(aes (linetype=Type), size=0.5) + 
-  geom_point(aes (shape=Type), size=1) + 
-  ggtitle (name) +
-  ylab ("Rate [Kbits/s]") +
-  facet_wrap (~ Node)
 
 # Get the basename of the file
 tmpname = strsplit(opt$file, "/")[[1]]
 filename = tmpname[length(tmpname)]
 # Get rid of the extension
 noext = gsub("\\..*", "", filename)
-
-outpng = ""
-# The output png
-if (nchar(opt$node) > 0) {
-  outpng = sprintf("%s/%s-%s.png", opt$output, noext, paste(filnodes, sep="", collapse="_"))
-} else {
-  outpng = sprintf("%s/%s.png", opt$output, noext)
-}
-
-png (outpng, width=1024, height=768)
-print (g.all)
-x = dev.off ()
 
 # Print the Interest information if the data is from CCN  
 intname = ""
