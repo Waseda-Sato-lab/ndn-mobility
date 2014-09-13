@@ -10,6 +10,7 @@
 # it under the terms of the GNU Affero Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
+#
 # app-data-j.R is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of              
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               
@@ -23,7 +24,7 @@ suppressPackageStartupMessages(library (ggplot2))
 suppressPackageStartupMessages(library (scales))
 suppressPackageStartupMessages(library (optparse))
 suppressPackageStartupMessages(library (doBy))
-suppressPackageStartupMessages(library(plyr))
+suppressPackageStartupMessages(library (plyr))
 
 data.mobile1 = read.table ("/home/jelfn/git/ndn-mobility/results/NDNMobilityRandom-app-delays-flood-04-001-054.txt", header=T)
 data.mobile2 = read.table ("/home/jelfn/git/ndn-mobility/results/NDNMobilityRandom-app-delays-smart-04-001-054.txt", header=T)
