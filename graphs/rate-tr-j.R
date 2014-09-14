@@ -59,7 +59,8 @@ filename = tmpname[length(tmpname)]
 noext = gsub("\\..*", "", filename)
 
 # Print the Interest information if the data is from CCN  
-intname = ""
+intdata.combined = ""
+g.int = ""
 # Filter for a particular node
 if (nchar(opt$node) > 0) {
   intdata = subset (intdata, Node %in% filnodes)
@@ -70,19 +71,32 @@ if (nchar(opt$node) > 0) {
   }
   
   intname = sprintf("%s Interest Data rate for Nodes %s", opt$title, opt$node)
+  
+  intdata.combined = summaryBy (. ~ Time + Node + Type, data=intdata, FUN=sum)
+  
+  # graph rates on all nodes in Kilobits
+  g.int <- ggplot (intdata.combined, aes(x=Time, y=Kilobits.sum, color=Type)) +
+    geom_line(aes (linetype=Type), size=0.5) + 
+    geom_point(aes (shape=Type), size=1) +  
+    ggtitle (intname) +
+    ylab ("Rate [Kbits/s]") +
+    xlab ("Simulation time (Seconds)") +
+    facet_wrap (~ Node)
 } else {
   intname = sprintf("%s Interest Data rate", opt$title)
+  
+  intdata.combined = summaryBy (. ~ Time + Type, data=intdata, FUN=sum)
+  
+  # graph rates on all nodes in Kilobits
+  g.int <- ggplot (intdata.combined, aes(x=Time, y=Kilobits.sum, color=Type)) +
+    geom_line(aes (linetype=Type), size=0.5) + 
+    geom_point(aes (shape=Type), size=1) +  
+    ggtitle (intname) +
+    ylab ("Rate [Kbits/s]") +
+    xlab ("Simulation time (Seconds)")
 }
   
-intdata.combined = summaryBy (. ~ Time + Node + Type, data=intdata, FUN=sum)
-  
-# graph rates on all nodes in Kilobits
-g.int <- ggplot (intdata.combined, aes(x=Time, y=Kilobits.sum, color=Type)) +
-  geom_line(aes (linetype=Type), size=0.5) + 
-  geom_point(aes (shape=Type), size=1) +  
-  ggtitle (intname) +
-  ylab ("Rate [Kbits/s]") +
-  facet_wrap (~ Node)
+
   
 outInpng = ""
 # The output png
