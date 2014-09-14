@@ -145,11 +145,11 @@ int main (int argc, char *argv[])
 	char results[250] = "results";                // Directory to place results
 	char posFile[250] = "rand-hex.txt";           // File including the positioning of the nodes
 	double endTime = 800;                         // Number of seconds to run the simulation
-	double intFreq = 10.0;                        // How many Interests/second a producer creates
 	double MBps = 0.15;                           // MB/s data rate desired for applications
 	int contentSize = -1;                         // Size of content to be retrieved
 	int maxSeq = -1;                              // Maximum number of Data packets to request
 	double retxtime = 0.05;                       // How frequent Interest retransmission timeouts should be checked (seconds)
+	int csSize = 10000000;                        // How big the Content Store should be
 
 	// Variable for buffer
 	char buffer[250];
@@ -162,24 +162,27 @@ int main (int argc, char *argv[])
 	cmd.AddValue ("trace", "Enable trace files", traceFiles);
 	cmd.AddValue ("smart", "Enable SmartFlooding forwarding", smart);
 	cmd.AddValue ("bestr", "Enable BestRoute forwarding", bestr);
+	cmd.AddValue ("csSize", "Number of Interests a Content Store can maintain", csSize);
 	cmd.AddValue ("posfile", "File containing positioning information", posFile);
 	cmd.AddValue ("walk", "Enable random walk at walking speed", walk);
 	cmd.AddValue ("car", "Enable random walk at car speed", car);
-	cmd.AddValue ("endTime", "How long the simulation will last", endTime);
-	cmd.AddValue ("freq", "Number of Interests generated per second (relates to mbps)", intFreq);
+	cmd.AddValue ("endTime", "How long the simulation will last (Seconds)", endTime);
 	cmd.AddValue ("mbps", "Data transmission rate for NDN App in MBps", MBps);
 	cmd.AddValue ("size", "Content size in MB", contentSize);
 	cmd.AddValue ("retx", "How frequent Interest retransmission timeouts should be checked in seconds", retxtime);
 	cmd.Parse (argc,argv);
 
-	 // What the NDN Data packet payload size will be (MB)
-	uint32_t payLoadsize = (MBps / intFreq) * 1000000;
+	 // What the NDN Data packet payload size is fixed to 1024 bytes
+	uint32_t payLoadsize = 1024;
 
 	// Give the content size, find out how many sequence numbers are necessary
 	if (contentSize > 0)
 	{
-		maxSeq = 1 + ((contentSize - 1) / payLoadsize);
+		maxSeq = 1 + (((contentSize*1000000) - 1) / payLoadsize);
 	}
+
+	// How many Interests/second a producer creates
+	double intFreq = (MBps * 1000000) / payLoadsize;
 
 	vector<double> centralXpos;
 	vector<double> centralYpos;
@@ -610,7 +613,10 @@ int main (int argc, char *argv[])
 	}
 
 	// Set the Content Stores
-	ndnHelperRouters.SetContentStore ("ns3::ndn::cs::Freshness::Lru", "MaxSize", "1000");
+
+	sprintf(buffer, "%d", csSize);
+
+	ndnHelperRouters.SetContentStore ("ns3::ndn::cs::Freshness::Lru", "MaxSize", buffer);
 	ndnHelperRouters.SetDefaultRoutes (true);
 	// Install on ICN capable routers
 	ndnHelperRouters.Install (allNdnNodes);
