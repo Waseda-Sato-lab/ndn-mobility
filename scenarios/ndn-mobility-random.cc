@@ -173,7 +173,7 @@ int main (int argc, char *argv[])
 	cmd.Parse (argc,argv);
 
 	 // What the NDN Data packet payload size will be (MB)
-	int payLoadsize = MBps / intFreq;
+	uint32_t payLoadsize = (MBps / intFreq) * 1000000;
 
 	// Give the content size, find out how many sequence numbers are necessary
 	if (contentSize > 0)
@@ -187,7 +187,7 @@ int main (int argc, char *argv[])
 	vector<double> wirelessXpos;
 	vector<double> wirelessYpos;
 
-	NS_LOG_INFO ("Attempting to read positions file");
+	NS_LOG_INFO ("------Attempting to read positions file------");
 
 	// Attempt to read the file with the position data
 	ifstream file;
@@ -271,7 +271,7 @@ int main (int argc, char *argv[])
 		}
 	}
 
-	NS_LOG_INFO ("Creating nodes");
+	NS_LOG_INFO ("------Creating nodes------");
 	// Node definitions for mobile terminals (consumers)
 	NodeContainer mobileTerminalContainer;
 	mobileTerminalContainer.Create(mobile);
@@ -344,7 +344,7 @@ int main (int argc, char *argv[])
 	// Make sure to seed our random
 	gen.seed (std::time (0) + (long long)getpid () << 32);
 
-	NS_LOG_INFO ("Placing Central nodes");
+	NS_LOG_INFO ("------Placing Central nodes-------");
 	MobilityHelper centralStations;
 
 	Ptr<ListPositionAllocator> initialCenter = CreateObject<ListPositionAllocator> ();
@@ -359,7 +359,7 @@ int main (int argc, char *argv[])
 	centralStations.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
 	centralStations.Install(centralContainer);
 
-	NS_LOG_INFO ("Placing wireless access nodes");
+	NS_LOG_INFO ("------Placing wireless access nodes------");
 	MobilityHelper wirelessStations;
 
 	Ptr<ListPositionAllocator> initialWireless = CreateObject<ListPositionAllocator> ();
@@ -374,7 +374,7 @@ int main (int argc, char *argv[])
 	wirelessStations.SetMobilityModel("ns3::ConstantPositionMobilityModel");
 	wirelessStations.Install(wirelessContainer);
 
-	NS_LOG_INFO ("Placing mobile node");
+	NS_LOG_INFO ("------Placing mobile node and determining direction and speed------");
 	MobilityHelper mobileStations;
 
 	Ptr<ListPositionAllocator> initialMobile = CreateObject<ListPositionAllocator> ();
@@ -445,7 +445,7 @@ int main (int argc, char *argv[])
 	// Connect Wireless Nodes to central nodes
 	// Because the simulation is using Wifi, PtP connections are 100Mbps
 	// with 5ms delay
-	NS_LOG_INFO("Connecting Central nodes to wireless access nodes");
+	NS_LOG_INFO("------Connecting Central nodes to wireless access nodes------");
 
 	vector <NetDeviceContainer> ptpWLANCenterDevices;
 
@@ -490,7 +490,7 @@ int main (int argc, char *argv[])
 	}
 
 	// Connect the first level nodes amongst themselves
-	NS_LOG_INFO("Connecting First level nodes amongst themselves");
+	NS_LOG_INFO("------Connecting First level nodes amongst themselves------");
 	NetDeviceContainer ptpFirstFirstDevices;
 
 	for (int i = 0; i < first; i++)
@@ -501,7 +501,7 @@ int main (int argc, char *argv[])
 		}
 	}
 
-	NS_LOG_INFO ("Creating Wireless cards");
+	NS_LOG_INFO ("------Creating Wireless cards------");
 
 	// Use the Wifi Helper to define the wireless interfaces for APs
 	WifiHelper wifi;
@@ -533,7 +533,7 @@ int main (int argc, char *argv[])
 	// Create SSIDs for all the APs
 	std::vector<Ssid> ssidV;
 
-	NS_LOG_INFO ("Creating ssids for wireless cards");
+	NS_LOG_INFO ("------Creating ssids for wireless cards------");
 
 	// We store the Wifi AP mobility models in a map, ordered by the ssid string. Will be easier to manage when
 	// calling the modified StaMApWifiMac
@@ -554,7 +554,7 @@ int main (int argc, char *argv[])
 		apTerminalMobility[ssidtmp] = tmp;
 	}
 
-	NS_LOG_INFO ("Assigning mobile terminal wireless cards");
+	NS_LOG_INFO ("------Assigning mobile terminal wireless cards------");
 
 	NS_LOG_INFO ("Assigning AP wireless cards");
 	std::vector<NetDeviceContainer> wifiAPNetDevices;
@@ -591,7 +591,7 @@ int main (int argc, char *argv[])
 
 	// Now install content stores and the rest on the middle node. Leave
 	// out clients and the mobile node
-	NS_LOG_INFO ("Installing NDN stack on routers");
+	NS_LOG_INFO ("------Installing NDN stack on routers------");
 	ndn::StackHelper ndnHelperRouters;
 
 	// Decide what Forwarding strategy to use depending on user command line input
@@ -624,16 +624,24 @@ int main (int argc, char *argv[])
 	ndnHelperUsers.SetDefaultRoutes (true);
 	ndnHelperUsers.Install (allUserNodes);
 
-	NS_LOG_INFO ("Installing Producer Application");
+	NS_LOG_INFO ("------Installing Producer Application------");
+
+	sprintf(buffer, "Producer Payload size: %d", payLoadsize);
+	NS_LOG_INFO (buffer);
+
 	// Create the producer on the mobile node
 	ndn::AppHelper producerHelper ("ns3::ndn::Producer");
 	producerHelper.SetPrefix ("/waseda/sato");
 	producerHelper.SetAttribute ("StopTime", TimeValue (Seconds(endTime-1)));
 	// Payload size is in bytes
-	producerHelper.SetAttribute ("PayloadSize", UintegerValue(payLoadsize * 1000000));
+	producerHelper.SetAttribute ("PayloadSize", UintegerValue(payLoadsize));
 	producerHelper.Install (serverNodes);
 
-	NS_LOG_INFO ("Installing Consumer Application");
+	NS_LOG_INFO ("------Installing Consumer Application------");
+
+	sprintf(buffer, "Consumer Interest/s frequency: %f", intFreq);
+	NS_LOG_INFO (buffer);
+
 	// Create the consumer on the randomly selected node
 	ndn::AppHelper consumerHelper ("ns3::ndn::ConsumerCbr");
 	consumerHelper.SetPrefix ("/waseda/sato");
@@ -707,7 +715,7 @@ int main (int argc, char *argv[])
 		ndn::CsTracer::InstallAll (filename, Seconds (1));
 	}
 
-	NS_LOG_INFO ("Scheduling events - SSID changes");
+	NS_LOG_INFO ("------Scheduling events - SSID changes------");
 
 	// Schedule AP Changes
 	double apsec = 0.0;
@@ -728,7 +736,7 @@ int main (int argc, char *argv[])
 		j += checkTime;
 	}
 
-	NS_LOG_INFO ("Ready for execution!");
+	NS_LOG_INFO ("------Ready for execution!------");
 
 	Simulator::Stop (Seconds (endTime));
 	Simulator::Run ();
