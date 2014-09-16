@@ -126,8 +126,7 @@ void SetSSIDviaDistance(uint32_t mtId, Ptr<MobilityModel> node, std::map<std::st
 	SsidDistance.clear();
 }
 // Function to record status of mobile node
-
-/*   void showPosition (Ptr<Node> node, double deltaTime)
+void showPosition (Ptr<Node> node, double deltaTime)
 {
   uint32_t nodeId = node->GetId ();
   Ptr<MobilityModel> mobModel = node->GetObject<MobilityModel> ();
@@ -140,7 +139,6 @@ void SetSSIDviaDistance(uint32_t mtId, Ptr<MobilityModel> node, std::map<std::st
 
   Simulator::Schedule (Seconds (deltaTime), &showPosition, node, deltaTime);
 }
-*/
 
 int main (int argc, char *argv[])
 {
@@ -167,9 +165,8 @@ int main (int argc, char *argv[])
 	double retxtime = 0.05;                       // How frequent Interest retransmission timeouts should be checked (seconds)
 	int csSize = 10000000;                        // How big the Content Store should be
     double deltaTime = 10;
-	std::string traceFile;
-    //std::string traceFile = "src/mobility/examples/Walk_mobile_node_1.ns_movements";
-	//std::string traceFile = "/home/waseda-5/ndnSIM/ns-3/TraceFiles/Walk_1.ns_movements";
+    std::string traceFile = "src/mobility/examples/Walk_mobile_node_1.ns_movements";
+
 	// Variable for buffer
 	char buffer[250];
 
@@ -189,80 +186,9 @@ int main (int argc, char *argv[])
 	cmd.AddValue ("mbps", "Data transmission rate for NDN App in MBps", MBps);
 	cmd.AddValue ("size", "Content size in MB", contentSize);
 	cmd.AddValue ("retx", "How frequent Interest retransmission timeouts should be checked in seconds", retxtime);
-    //cmd.AddValue ("traceFile", "Ns2 movement trace file", traceFile);
-    //cmd.AddValue ("deltaTime", "time interval (s) between updates (default 100)", deltaTime);	
+    cmd.AddValue ("traceFile", "Ns2 movement trace file", traceFile);
+    cmd.AddValue ("deltaTime", "time interval (s) between updates (default 100)", deltaTime);	
 	cmd.Parse (argc,argv);
-
-    if (! (car || walk))
-	{
-		cerr << "ERROR: Must choose a speed for random walk!" << endl;
-		return 1;
-	}
-
-	double carSpeed = 18.5;
-	double walkSpeed = 1.4;
-
-	double finalspeed;
-
-	if (car)
-	{
-		NS_LOG_INFO("Random walk at car speed - 18.5m/s");
-		sprintf(buffer, "ns3::ConstantRandomVariable[Constant=%f]", carSpeed);
-
-		finalspeed = carSpeed;
-	} else if (walk)
-	{
-		NS_LOG_INFO("Random walk at human walking speed - 1.4m/s");
-		sprintf(buffer, "ns3::ConstantRandomVariable[Constant=%f]", walkSpeed);
-
-		finalspeed = walkSpeed;
-	}
-
-	string speed = string(buffer);
-
-
-	//mobileStations.SetPositionAllocator(initialMobile);
-
-	if (finalspeed == 1.4)
-	{
-		
-
-		switch (mobile-1)
-		{
-		case 0:
-			traceFile = "/home/waseda-5/ndnSIM/ns-3/TraceFiles/Walk_1.ns_movements";
-			break;
-		case 1:
-			traceFile = "/home/waseda-5/ndnSIM/ns-3/TraceFiles/Walk_2.ns_movements";
-			break;
-		case 2:
-			traceFile = "/home/waseda-5/ndnSIM/ns-3/TraceFiles/Walk_3.ns_movements";
-			break;
-		case 3:
-			traceFile = "/home/waseda-5/ndnSIM/ns-3/TraceFiles/Walk_4.ns_movements";
-			break;
-		}
-	}
-	else
-	{
-		
-
-		switch (mobile-1)
-		{
-		case 0:
-			traceFile = "/home/waseda-5/ndnSIM/ns-3/TraceFiles/Car_1.ns_movements";
-			break;
-		case 1:
-			traceFile = "/home/waseda-5/ndnSIM/ns-3/TraceFiles/Car_2.ns_movements";
-			break;
-		case 2:
-			traceFile = "/home/waseda-5/ndnSIM/ns-3/TraceFiles/Car_3.ns_movements";
-			break;
-		case 3:
-			traceFile = "/home/waseda-5/ndnSIM/ns-3/TraceFiles/Car_4.ns_movements";
-			break;
-		}
-	}
 
 	 // What the NDN Data packet payload size is fixed to 1024 bytes
 	uint32_t payLoadsize = 1024;
@@ -472,7 +398,7 @@ int main (int argc, char *argv[])
 	NS_LOG_INFO ("------Placing mobile node and determining direction and speed------");
 	MobilityHelper mobileStations;
 
-/*	Ptr<ListPositionAllocator> initialMobile = CreateObject<ListPositionAllocator> ();
+	Ptr<ListPositionAllocator> initialMobile = CreateObject<ListPositionAllocator> ();
 
 	for (int i = 0; i < mobile; i++)
 	{
@@ -496,15 +422,42 @@ int main (int argc, char *argv[])
 		}
 	}
 
-sprintf(buffer, "0|%d|0|%d", xaxis, yaxis);
+//sprintf(buffer, "0|%d|0|%d", xaxis, yaxis);
 
-string bounds = string(buffer);
+//string bounds = string(buffer);
+
+/*  if (! (car || walk))
+	{
+		cerr << "ERROR: Must choose a speed for random walk!" << endl;
+		return 1;
+	}
+
+	double carSpeed = 18.5;
+	double walkSpeed = 1.4;
+
+	double finalspeed;
+
+	if (car)
+	{
+		NS_LOG_INFO("Random walk at car speed - 18.5m/s");
+		sprintf(buffer, "ns3::ConstantRandomVariable[Constant=%f]", carSpeed);
+
+		finalspeed = carSpeed;
+	} else if (walk)
+	{
+		NS_LOG_INFO("Random walk at human walking speed - 1.4m/s");
+		sprintf(buffer, "ns3::ConstantRandomVariable[Constant=%f]", walkSpeed);
+
+		finalspeed = walkSpeed;
+	}
+
+	string speed = string(buffer);
 */
 
-
+	mobileStations.SetPositionAllocator(initialMobile);
 
     Ns2MobilityHelper ns2 = Ns2MobilityHelper (traceFile);
-    ns2.Install ();
+    ns2.Install (mobileTerminalCOntainer);
 /*	mobileStations.SetMobilityModel ("ns3::RandomWalk2dMobilityModel",
 	                             "Mode", StringValue ("Distance"),
 	                             "Distance", StringValue ("500"),
