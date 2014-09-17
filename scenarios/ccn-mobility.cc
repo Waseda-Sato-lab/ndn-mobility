@@ -1,4 +1,4 @@
-/* -*- Mode:C++; c-file-style:"gnu"; -*- */
+/* -*- Mode:C++; c-file-style:"gnu" -*- */
 /*
  * ccn-mobility.cc
  *  Simple Wifi Mobile scenario for ndnSIM

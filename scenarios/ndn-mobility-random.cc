@@ -143,14 +143,17 @@ int main (int argc, char *argv[])
 	bool walk = true;                             // Do random walk at walking speed
 	bool car = false;                             // Do random walk at car speed
 	char results[250] = "results";                // Directory to place results
-	char posFile[250] = "rand-hex.txt";           // File including the positioning of the nodes
+	char posFile[250] = "./Data/rand-hex.txt";    // File including the positioning of the nodes
 	double endTime = 800;                         // Number of seconds to run the simulation
 	double MBps = 0.15;                           // MB/s data rate desired for applications
 	int contentSize = -1;                         // Size of content to be retrieved
 	int maxSeq = -1;                              // Maximum number of Data packets to request
 	double retxtime = 0.05;                       // How frequent Interest retransmission timeouts should be checked (seconds)
 	int csSize = 10000000;                        // How big the Content Store should be
-
+	//double deltaTime = 10;
+        std::string nsTFile;                          // Name of the NS Trace file to use
+	char nsTDir[250] = "./Waypoints";           // Directory for the waypoint files
+	
 	// Variable for buffer
 	char buffer[250];
 
@@ -168,9 +171,79 @@ int main (int argc, char *argv[])
 	cmd.AddValue ("car", "Enable random walk at car speed", car);
 	cmd.AddValue ("endTime", "How long the simulation will last (Seconds)", endTime);
 	cmd.AddValue ("mbps", "Data transmission rate for NDN App in MBps", MBps);
-	cmd.AddValue ("size", "Content size in MB", contentSize);
+	cmd.AddValue ("size", "Content size in MB (-1 is for no limit)", contentSize);
 	cmd.AddValue ("retx", "How frequent Interest retransmission timeouts should be checked in seconds", retxtime);
+	cmd.AddValue ("traceFile", "Directory containing Ns2 movement trace files (Usually created by Bonnmotion)", nsTDir);
+	//cmd.AddValue ("deltaTime", "time interval (s) between updates (default 100)", deltaTime);	
 	cmd.Parse (argc,argv);
+
+	if (! (car || walk))
+	{
+		cerr << "ERROR: Must choose a speed for random walk!" << endl;
+		return 1;
+	}
+
+	double carSpeed = 18.5;
+	double walkSpeed = 1.4;
+	double finalspeed;
+
+	if (car)
+	{
+		NS_LOG_INFO("Random walk at car speed - 18.5m/s");
+		sprintf(buffer, "ns3::ConstantRandomVariable[Constant=%f]", carSpeed);
+
+		finalspeed = carSpeed;
+	} else if (walk)
+	{
+		NS_LOG_INFO("Random walk at human walking speed - 1.4m/s");
+		sprintf(buffer, "ns3::ConstantRandomVariable[Constant=%f]", walkSpeed);
+
+		finalspeed = walkSpeed;
+	}
+
+	string speed = string(buffer);
+
+	//mobileStations.SetPositionAllocator(initialMobile);
+
+	uint32_t top = mobile-1;
+	if (walk)
+	{
+		switch (top)
+		{
+		case 0:
+                	sprintf(buffer, "%s/Walk_1.ns_movements", nsTDir);
+			break;
+		case 1:
+                	sprintf(buffer, "%s/Walk_2.ns_movements", nsTDir);
+			break;
+		case 2:
+                	sprintf(buffer, "%s/Walk_3.ns_movements", nsTDir);
+			break;
+		case 3:
+                	sprintf(buffer, "%s/Walk_4.ns_movements", nsTDir);
+			break;
+		}
+		nsTFile = buffer;
+	}
+	else if (car)
+	{
+		switch (top)
+		{
+		case 0:
+			sprintf(buffer, "%s/Car_1.ns_movements", nsTDir);
+			break;
+		case 1:
+			sprintf(buffer, "%s/Car_2.ns_movements", nsTDir);
+			break;
+		case 2:
+			sprintf(buffer, "%s/Car_3.ns_movements", nsTDir);
+			break;
+		case 3:
+			sprintf(buffer, "%s/Car_4.ns_movements", nsTDir);
+			break;
+		}
+		nsTFile = buffer;
+	}
 
 	 // What the NDN Data packet payload size is fixed to 1024 bytes
 	uint32_t payLoadsize = 1024;
@@ -380,7 +453,7 @@ int main (int argc, char *argv[])
 	NS_LOG_INFO ("------Placing mobile node and determining direction and speed------");
 	MobilityHelper mobileStations;
 
-	Ptr<ListPositionAllocator> initialMobile = CreateObject<ListPositionAllocator> ();
+/*	Ptr<ListPositionAllocator> initialMobile = CreateObject<ListPositionAllocator> ();
 
 	for (int i = 0; i < mobile; i++)
 	{
@@ -404,46 +477,24 @@ int main (int argc, char *argv[])
 		}
 	}
 
-	sprintf(buffer, "0|%d|0|%d", xaxis, yaxis);
+sprintf(buffer, "0|%d|0|%d", xaxis, yaxis);
 
-	string bounds = string(buffer);
+string bounds = string(buffer);
+*/
 
-	if (! (car || walk))
-	{
-		cerr << "ERROR: Must choose a speed for random walk!" << endl;
-		return 1;
-	}
+        sprintf(buffer, "Reading NS trace file %s", nsTFile.c_str());
+        NS_LOG_INFO(buffer);
 
-	double carSpeed = 18.5;
-	double walkSpeed = 1.4;
-
-	double finalspeed;
-
-	if (car)
-	{
-		NS_LOG_INFO("Random walk at car speed - 18.5m/s");
-		sprintf(buffer, "ns3::ConstantRandomVariable[Constant=%f]", carSpeed);
-
-		finalspeed = carSpeed;
-	} else if (walk)
-	{
-		NS_LOG_INFO("Random walk at human walking speed - 1.4m/s");
-		sprintf(buffer, "ns3::ConstantRandomVariable[Constant=%f]", walkSpeed);
-
-		finalspeed = walkSpeed;
-	}
-
-	string speed = string(buffer);
-
-	mobileStations.SetPositionAllocator(initialMobile);
-	mobileStations.SetMobilityModel ("ns3::RandomWalk2dMobilityModel",
+	Ns2MobilityHelper ns2 = Ns2MobilityHelper (nsTFile);
+	ns2.Install ();
+/*	mobileStations.SetMobilityModel ("ns3::RandomWalk2dMobilityModel",
 	                             "Mode", StringValue ("Distance"),
 	                             "Distance", StringValue ("500"),
 	                             "Speed", StringValue (speed),
 	                             "Bounds", StringValue (bounds));
 
 	mobileStations.Install(mobileTerminalContainer);
-
+*/
 
 	// Connect Wireless Nodes to central nodes
 	// Because the simulation is using Wifi, PtP connections are 100Mbps
@@ -748,5 +799,3 @@ int main (int argc, char *argv[])
 	Simulator::Run ();
 	Simulator::Destroy ();
 }
-
-
