@@ -316,7 +316,7 @@ int main (int argc, char *argv[])
 	// Place the mobile terminal above the APs and use the waypoint model
 	MobilityHelper mobilityTerminals;
 
-	Vector diff = Vector(0.0, -20.0, 0.0);
+	Vector diff = Vector (0.0, -20.0, 0.0);
 
 	Vector pos;
 
@@ -326,7 +326,7 @@ int main (int argc, char *argv[])
 
 	pos = mob->GetPosition();
 
-	initialAlloc->Add (pos + diff);
+	initialAlloc->Add (Vector (pos.x + diff.x, pos.y + diff.y, pos.z + pos.z));
 	mobilityTerminals.SetPositionAllocator(initialAlloc);
 	mobilityTerminals.SetMobilityModel("ns3::WaypointMobilityModel");
 	mobilityTerminals.Install(mobileTerminalContainer);
@@ -342,7 +342,9 @@ int main (int argc, char *argv[])
 	{
 		mob = apsContainer.Get (j)->GetObject<MobilityModel>();
 
-		Vector wayP = mob->GetPosition () + diff;
+		Vector tmp = mob->GetPosition ();
+
+		Vector wayP = Vector (tmp.x + diff.x, tmp.y + diff.y, tmp.z + diff.z);
 
 		staWaypointMobility->AddWaypoint (Waypoint(Seconds(sec), wayP));
 		staWaypointMobility->AddWaypoint (Waypoint(Seconds(sec + waitint), wayP));
@@ -542,7 +544,7 @@ int main (int argc, char *argv[])
 		sprintf(fileId, "%s-%02d-%03d-%03d.txt", routeType, mobile, clients, nodes);
 
 		// Print server nodes to file
-		sprintf(filename, "%s/%s-servers-%d", results, scenario, fileId);
+		sprintf(filename, "%s/%s-servers-%s", results, scenario, fileId);
 
 	/*	NS_LOG_INFO ("Printing node files");
 		std::ofstream serverFile;
